@@ -1,0 +1,80 @@
+pipeline {
+    agent {
+        label 'python'
+    }
+    options {
+        buildDiscarder(
+            logRotator(numToKeepStr: '5')
+        )
+        timestamps()
+        disableConcurrentBuilds()
+        timeout(
+            time: 1,
+            unit: 'HOURS'
+        )
+        durabilityHint('PERFORMANCE_OPTIMIZED')
+    }
+    parameters {
+        booleanParam(
+            name: 'RUN_LINTER',
+            defaultValue: true,
+            description: 'Do you want to perform pylint evaluation?'
+        )
+        booleanParam(
+            name: 'RUN_TESTS',
+            defaultValue: true,
+            description: 'Do you want to run test phase?'
+        )
+        booleanParam(
+            name: 'RUN_SONARQUBE',
+            defaultValue: true,
+            description: 'Do you want to perform Sonarqube analysis?'
+        )
+        booleanParam(
+            name: 'DEPLOY_IMAGE',
+            defaultValue: false,
+            description: 'Do you want to push image to registy?'
+        )
+        booleanParam(
+            name: 'CREATE_RELEASE',
+            defaultValue: false,
+            description: 'Do you want to create release package?'
+        )
+    }
+    stages {
+        stage('Install packages') {
+            steps {
+                sh 'pip install -r requirements.txt'
+            }
+        }
+        stage('Start application') {
+            steps {
+                sh '''
+                python manage.py runserver
+                sleep 10
+                pkill -9 'python'
+                '''
+            }
+        }
+        stage('Run linter') {
+            when { expression { params.RUN_LINTER } }
+            steps {
+                sh 'find . -name *.py | xargs pylint -f parseable | tee pylint.log'
+                archiveArtifacts(
+                    artifacts: 'pylint.log',
+                    fingerprint: true
+                )
+            }
+        }
+        stage('Run tests') {
+            when { expression { params.RUN_TESTS } }
+            steps {
+                sh '''
+                pytest --cov=pizzaapp \
+                --cov-report xml:coverage-reports/pycov/report.xml
+                '''
+            }
+        }
+    }
+
+}

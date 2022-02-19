@@ -23,11 +23,11 @@ def create_pizza():
         pizza.save()
 
     except ValidationError:
-        message = {"error": f"Name and/or price can't be blank"}
+        message = {"error": "Name and/or price can't be blank"}
         return custom_response(message, 400)
 
     except IntegrityError:
-        message = {"error": f"Pizza with this name already exists"}
+        message = {"error": "Pizza with this name already exists"}
         return custom_response(message, 400)
 
     else:
@@ -63,7 +63,7 @@ def get_single_pizza(pizza_id):
     pizza = PizzaModel.get_pizza_by_id(pizza_id)
 
     if not pizza:
-        message = {"error": f"Pizza with this id not exists"}
+        message = {"error": "Pizza with this id not exists"}
         return custom_response(message, 404)
 
     serialized_pizza = pizza_schema.dump(pizza)
@@ -86,15 +86,15 @@ def update_pizza(pizza_id):
         pizza.update(data)
 
     except ValidationError:
-        message = {"error": f"Name and/or price can't be blank"}
+        message = {"error": "Name and/or price can't be blank"}
         return custom_response(message, 400)
 
     except IntegrityError:
-        message = {"error": f"Pizza with this name already exists"}
+        message = {"error": "Pizza with this name already exists"}
         return custom_response(message, 400)
 
     except AttributeError:
-        message = {"error": f"Pizza with this id not exists"}
+        message = {"error": "Pizza with this id not exists"}
         return custom_response(message, 404)
 
     else:
@@ -114,7 +114,7 @@ def delete_pizza(pizza_id):
         pizza.delete()
 
     except AttributeError:
-        message = {"error": f"Pizza with this id not exists"}
+        message = {"error": "Pizza with this id not exists"}
         return custom_response(message, 404)
 
     else:

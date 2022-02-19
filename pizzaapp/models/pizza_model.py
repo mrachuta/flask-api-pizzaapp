@@ -44,8 +44,8 @@ class PizzaModel(db.Model):
         return PizzaModel.query.all()
 
     @staticmethod
-    def get_pizza_by_id(id):
-        return PizzaModel.query.get(id)
+    def get_pizza_by_id(pizza_id):
+        return PizzaModel.query.get(pizza_id)
 
     # Not necessary yet
     # @staticmethod
@@ -67,7 +67,7 @@ class PizzaModel(db.Model):
         db.session.commit()
 
     def __repr(self):
-        return "<name {}>".format(self.name)
+        return f"<name {self.name}>"
 
 
 class PizzaSchema(Schema):
