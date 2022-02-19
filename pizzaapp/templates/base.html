@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  {% if title %}
+  <title>{{ title }} - PizzaApp</title>
+  {% else %}
+  <title>Unnamed page - PizzApp</title>
+  {% endif %}
+  <meta name="description" content="PizzaApp - first Flask API">
+  <link rel="stylesheet" href="css/styles.css?v=1.0">
+</head>
+<body>
+ <p>{% block content %}{% endblock %}</p>
+</body>
+</html>
