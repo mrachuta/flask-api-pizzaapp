@@ -14,6 +14,9 @@ pipeline {
         )
         durabilityHint('PERFORMANCE_OPTIMIZED')
     }
+    environment {
+        PATH = "$PATH:$HOME/.local/bin"
+    }
     parameters {
         booleanParam(
             name: 'RUN_LINTER',
@@ -47,22 +50,13 @@ pipeline {
                 sh 'pip install -r requirements.txt'
             }
         }
-        stage('Start application') {
-            steps {
-                sh '''
-                python manage.py runserver
-                sleep 10
-                pkill -9 'python'
-                '''
-            }
-        }
         stage('Run linter') {
             when { expression { params.RUN_LINTER } }
             steps {
-                sh 'find . -name *.py | xargs pylint -f parseable | tee pylint.log'
-                archiveArtifacts(
-                    artifacts: 'pylint.log',
-                    fingerprint: true
+                sh 'find . -name \\*.py | xargs pylint -f parseable | tee pylint.log'
+                recordIssues(
+                    tool: pyLint(pattern: 'pylint.log'),
+                    unstableTotalHigh: 100,
                 )
             }
         }
@@ -73,8 +67,39 @@ pipeline {
                 pytest --cov=pizzaapp \
                 --cov-report xml:coverage-reports/pycov/report.xml
                 '''
+                publishCoverage(
+                    adapters: [
+                        coberturaAdapter(
+                            path: 'coverage-reports/pycov/report.xml',
+                            thresholds: [
+                                [
+                                    thresholdTarget: 'Aggregated Report',
+                                    unhealthyThreshold: 30.0,
+                                    unstableThreshold: 50.0
+                                ]
+                            ]
+                        )
+                    ],
+                    sourceFileResolver: sourceFiles('NEVER_STORE')
+                )
+            }
+        }
+        stage('Run Sonarqube analysis') {
+            when { expression { params.RUN_SONARQUBE } }
+            steps {
+                script {
+                    def scannerHome = tool('sonarqube_scanner_default')
+                    withSonarQubeEnv('sonarqube_default') {
+                        sh("${scannerHome}/bin/sonar-scanner")
+                    }
+                    timeout(time: 10, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                            if (qg.status != 'OK') {
+                        error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                        }
+                    }
+                }
             }
         }
     }
-
 }
