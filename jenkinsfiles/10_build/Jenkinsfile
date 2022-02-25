@@ -1,3 +1,5 @@
+def sonarQGStatus = ''
+
 pipeline {
     agent {
         label 'python'
@@ -94,10 +96,28 @@ pipeline {
                     }
                     timeout(time: 10, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
-                            if (qg.status != 'OK') {
-                        error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                        if (qg.status != 'OK') {
+                            error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                        } else {
+                            sonarQGStatus = qg.status
                         }
                     }
+                }
+            }
+        }
+        stage('Create Docker image') {
+            when { expression { params.DEPLOY_IMAGE } }
+            steps {
+                script {
+                    tagName = "${env.GIT_BRANCH.tokenize('/').last().take(20)}-${env.BUILD_NUMBER}"
+                    echo "Building image with tag: ${tagName}"
+                    sh """
+                    docker build . -t flask-api-pizzaapp:${tagName} \
+                    --label COMMIT_ID=${env.GIT_COMMIT} \
+                    --label BRANCH=${env.GIT_BRANCH} \
+                    --label BUILD_NO=${env.BUILD_NUMBER} \
+                    --label SONAR_QG_STATUS=${sonarQGStatus}
+                    """
                 }
             }
         }
