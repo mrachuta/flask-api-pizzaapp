@@ -15,9 +15,12 @@ pipeline {
             unit: 'HOURS'
         )
         durabilityHint('PERFORMANCE_OPTIMIZED')
+        ansiColor('xterm')
     }
     environment {
         PATH = "$PATH:$HOME/.local/bin"
+        AZURE_PRINCIPAL = credentials('azure-aks-testcluster-service-principal')
+        APP_NAME = 'flask-api-pizzaapp'
     }
     parameters {
         booleanParam(
@@ -36,17 +39,41 @@ pipeline {
             description: 'Do you want to perform Sonarqube analysis?'
         )
         booleanParam(
-            name: 'DEPLOY_IMAGE',
+            name: 'CREATE_IMAGE',
             defaultValue: false,
-            description: 'Do you want to push image to registy?'
+            description: 'Do you want to create and push image to registy?'
         )
         booleanParam(
-            name: 'CREATE_RELEASE',
+            name: 'DEPLOY_TO_TEST',
             defaultValue: false,
-            description: 'Do you want to create release package?'
+            description: 'Do you want to deploy image to TEST environment?'
         )
     }
     stages {
+        stage('Prepare variables') {
+            steps {
+                script {
+                    echo 'Exposing Azure-specific env variables...'
+                    configFileProvider([
+                        configFile(
+                            fileId: 'azure-config',
+                            variable: 'AZURE_CONFIGURATION'
+                        )
+                    ]) {
+                        // Split by each line, then split by '=' and remove quotes
+                        azureVariables = readFile("${env.AZURE_CONFIGURATION}").split('\n').collect { azVar ->
+                            azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
+                        }
+                        env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
+                        env.AZURE_TENNANT = azureVariables[1]
+                        env.AZURE_TENNANT_ID = azureVariables[2]
+                        env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
+                        env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
+                        env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
+                    }
+                }
+            }
+        }
         stage('Install packages') {
             steps {
                 sh 'pip install -r requirements.txt'
@@ -106,18 +133,65 @@ pipeline {
             }
         }
         stage('Create Docker image') {
-            when { expression { params.DEPLOY_IMAGE } }
+            when { expression { params.CREATE_IMAGE } }
+            environment {
+                TAG_NAME = "${env.GIT_BRANCH.replaceAll('/', '-').take(23)}-${env.BUILD_NUMBER}"
+                DOCKER_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
+            }
             steps {
                 script {
-                    tagName = "${env.GIT_BRANCH.tokenize('/').last().take(20)}-${env.BUILD_NUMBER}"
-                    echo "Building image with tag: ${tagName}"
+                    if (!params.RUN_LINTER || !params.RUN_TESTS || !params.RUN_SONARQUBE) {
+                        error('You canot create image without passing all previous stages!')
+                    }
+                    echo "Building image with tag: ${env.TAG_NAME}"
                     sh """
-                    docker build . -t flask-api-pizzaapp:${tagName} \
+                    docker build . -t ${env.APP_NAME}:${env.TAG_NAME} \
                     --label COMMIT_ID=${env.GIT_COMMIT} \
                     --label BRANCH=${env.GIT_BRANCH} \
                     --label BUILD_NO=${env.BUILD_NUMBER} \
                     --label SONAR_QG_STATUS=${sonarQGStatus}
                     """
+                    sh '''
+                    az login --service-principal \
+                    --username $AZURE_PRINCIPAL_USR \
+                    --password $AZURE_PRINCIPAL_PSW \
+                    --tenant $AZURE_TENNANT
+                    az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
+                    --output tsv --query accessToken > docker_token
+                    docker login $AZURE_REGISTRY_ADDRESS --username $DOCKER_REGISTRY_USR --password-stdin < docker_token
+                    docker tag $APP_NAME:$TAG_NAME $AZURE_REGISTRY_ADDRESS/$APP_NAME:$TAG_NAME
+                    docker push $AZURE_REGISTRY_ADDRESS/$APP_NAME:$TAG_NAME
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            script {
+                sh '''
+                az login --service-principal \
+                --username $AZURE_PRINCIPAL_USR \
+                --password $AZURE_PRINCIPAL_PSW \
+                --tenant $AZURE_TENNANT
+                '''
+                obsoleteImageList = sh(
+                    returnStdout: true,
+                    script: '''
+                    az acr repository show-manifests --name $AZURE_REGISTRY_ADDRESS --repository $APP_NAME \
+                    --orderby time_asc --query "[?timestamp < '$(date --date='-30 days' '+%Y-%m-%d')'].tag[0]" -o tsv
+                    '''
+                ).trim()
+                if (obsoleteImageList) {
+                    obsoleteImageList.each { imageTag ->
+                        echo "Deleting ${imageTag} -> older than 30 days!"
+                        sh """
+                        az acr repository delete --name ${env.AZURE_REGISTRY_ADDRESS} \
+                        --image ${env.APP_NAME}:${imageTag}
+                        """
+                    }
+                } else {
+                    echo 'No images older than 30 days'
                 }
             }
         }
