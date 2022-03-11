@@ -114,7 +114,7 @@ class PizzaTest(unittest.TestCase):
     def test_update_non_existing_pizza(self):
 
         res_one = self.client.patch(
-            f"/api/v1/pizza/1",
+            "/api/v1/pizza/1",
             headers={"Content-Type": "application/json"},
             data=json.dumps({"name": "modified-test-pizza", "price": "25.12"}),
         )
@@ -181,7 +181,7 @@ class PizzaTest(unittest.TestCase):
     def test_delete_non_existing_pizza(self):
 
         res_two = self.client.delete(
-            f"/api/v1/pizza/1",
+            "/api/v1/pizza/1",
             headers={"Content-Type": "application/json"},
             data=json.dumps({"name": "test-pizza", "price": "22.83"}),
         )
@@ -200,4 +200,3 @@ class PizzaTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

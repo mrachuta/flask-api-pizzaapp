@@ -26,6 +26,5 @@ if __name__ == "__main__":
         migration = Migration(os.environ.get("FLASK_ENV"))
         migration.do_migration()
     except KeyError:
-        print(
-            f"ERROR: set environment with FLASK_ENV. Possible profiles: {' '.join(map(str, app_config.keys()))}"
-        )
+        print("ERROR: set environment with FLASK_ENV")
+        print(f"Possible profiles:{' '.join(map(str, app_config.keys()))}")
