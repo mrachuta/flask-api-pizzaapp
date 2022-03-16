@@ -178,7 +178,7 @@ pipeline {
                     --name $AZURE_KUBE_CLUSTER_NAME --admin
                     helm upgrade --install $APP_NAME ./helm/$APP_NAME \
                     --wait \
-                    --timeout 10 \
+                    --timeout 10m \
                     --atomic \
                     --namespace "$TARGET_ENV" \
                     --values ./helm/environments/${TARGET_ENV}.yaml \
