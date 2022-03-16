@@ -19,8 +19,12 @@ pipeline {
     }
     environment {
         PATH = "$PATH:$HOME/.local/bin"
-        AZURE_PRINCIPAL = credentials('azure-aks-testcluster-service-principal')
         APP_NAME = 'flask-api-pizzaapp'
+        TAG_NAME = "${env.GIT_BRANCH.replaceAll('/', '-').take(23)}-${env.BUILD_NUMBER}"
+        TARGET_ENV = 'dev-env'
+        DATABASE_CRED = credentials('flask-api-pizzaapp-database-dev-env')
+        AZURE_PRINCIPAL = credentials('azure-aks-testcluster-service-principal')
+        DOCKER_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
     }
     parameters {
         booleanParam(
@@ -44,9 +48,9 @@ pipeline {
             description: 'Do you want to create and push image to registy?'
         )
         booleanParam(
-            name: 'DEPLOY_TO_TEST',
+            name: 'DEPLOY_TO_ENV',
             defaultValue: false,
-            description: 'Do you want to deploy image to TEST environment?'
+            description: 'Do you want to deploy image to target environment?'
         )
     }
     stages {
@@ -134,10 +138,6 @@ pipeline {
         }
         stage('Create Docker image') {
             when { expression { params.CREATE_IMAGE } }
-            environment {
-                TAG_NAME = "${env.GIT_BRANCH.replaceAll('/', '-').take(23)}-${env.BUILD_NUMBER}"
-                DOCKER_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
-            }
             steps {
                 script {
                     if (!params.RUN_LINTER || !params.RUN_TESTS || !params.RUN_SONARQUBE) {
@@ -159,8 +159,33 @@ pipeline {
                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
                     --output tsv --query accessToken > docker_token
                     docker login $AZURE_REGISTRY_ADDRESS --username $DOCKER_REGISTRY_USR --password-stdin < docker_token
-                    docker tag $APP_NAME:$TAG_NAME $AZURE_REGISTRY_ADDRESS/$APP_NAME:$TAG_NAME
-                    docker push $AZURE_REGISTRY_ADDRESS/$APP_NAME:$TAG_NAME
+                    docker tag ${APP_NAME}:${TAG_NAME} ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${TAG_NAME}
+                    docker push ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${TAG_NAME}
+                    '''
+                }
+            }
+        }
+        stage('Deploy to target environment') {
+            when { expression { params.DEPLOY_TO_ENV } }
+            steps {
+                script {
+                    if (!params.RUN_LINTER || !params.RUN_TESTS || !params.RUN_SONARQUBE || !params.CREATE_IMAGE) {
+                        error('You canot perform deployment without passing all previous stages!')
+                    }
+                    echo "Deploying to ${env.TARGET_ENV}"
+                    sh '''
+                    az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP_NAME \
+                    --name $AZURE_KUBE_CLUSTER_NAME --admin
+                    helm upgrade --install $APP_NAME ./helm/$APP_NAME \
+                    --wait \
+                    --timeout 10 \
+                    --atomic \
+                    --namespace "$TARGET_ENV" \
+                    --values ./helm/environments/${TARGET_ENV}.yaml \
+                    --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
+                    --set image.tag="${TAG_NAME}" \
+                    --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
+                    --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
                     '''
                 }
             }
@@ -194,6 +219,9 @@ pipeline {
                     echo 'No images older than 30 days'
                 }
             }
+        }
+        cleanup {
+            cleanWs()
         }
     }
 }
