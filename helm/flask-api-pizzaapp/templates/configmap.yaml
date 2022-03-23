@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "flask-api-pizzaapp-chart.fullname" . }}
+  labels:
+    {{- include "flask-api-pizzaapp-chart.labels" . | nindent 4 }}
+data:
+  {{- range $k, $v := .Values.env.configMap }}
+    {{ $k }}: {{ $v | quote }}
+  {{- end }}

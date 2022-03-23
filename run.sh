@@ -9,4 +9,4 @@ if [[ -z "${FLASK_SKIP_DB_MIGRATION}" ]]; then
 fi
 
 echo "INFO: Starting application..."
-python manage.py runserver
+python manage.py runserver --host=0.0.0.0
