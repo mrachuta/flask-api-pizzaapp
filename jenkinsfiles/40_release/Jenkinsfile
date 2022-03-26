@@ -14,6 +14,7 @@ pipeline {
         )
         durabilityHint('PERFORMANCE_OPTIMIZED')
         ansiColor('xterm')
+        skipDefaultCheckout()
     }
     environment {
         PATH = "$PATH:$HOME/.local/bin"
@@ -27,6 +28,11 @@ pipeline {
         stage('Prepare variables') {
             steps {
                 script {
+                    env.GIT_BRANCH = scm.branches[0].name
+                    env.GIT_URL = scm.userRemoteConfigs[0].url
+                    // TODO: Allow to build only from development branch
+                    echo "Git repo url: ${env.GIT_URL}"
+                    echo "Git branch: ${env.GIT_BRANCH}"
                     echo 'Exposing Azure-specific env variables...'
                     configFileProvider([
                         configFile(
@@ -59,25 +65,27 @@ pipeline {
                     '''
                     def imageTags = sh(
                         returnStdout: true,
-                        script: 'az acr repository show-tags --name devjtacr01 \
-                        --repository flask-api-pizzaapp --orderby time_desc --output tsv | grep development'
+                        script: 'az acr repository show-tags --name ${AZURE_REGISTRY_ADDRESS} \
+                        --repository ${APP_NAME} --orderby time_desc --output tsv | grep \'^development\''
                     ).trim()
-                    env.SELECTED_TAG = input(
-                        message: 'Select image to create release',
-                        parameters: [
-                            choice(
-                                name: 'Image tag to be used to create release',
-                                choices: imageTags,
-                                description: 'Select image that will be used to create release version.' +
-                                'Only builds from development branch are allowed'
-                            )
-                        ]
-                    )
+                    timeout(time: 5, unit: 'MINUTES') {
+                        env.SELECTED_TAG = input(
+                            message: 'Select image to create release',
+                            parameters: [
+                                choice(
+                                    name: 'Image tag to be used to create release',
+                                    choices: imageTags,
+                                    description: 'Select image that will be used to create release version.' +
+                                    '<br>Only builds from development branch are allowed'
+                                )
+                            ]
+                        )
+                    }
                     echo "Image tag selected to create release: ${env.SELECTED_TAG}"
                     sh '''
-                    REGISTRY_TOKEN=$(az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
-                    --output tsv --query accessToken)
-                    docker login $AZURE_REGISTRY_ADDRESS --username $DOCKER_REGISTRY_USR --password-stdin < $REGISTRY_TOKEN
+                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
+                    --output tsv --query accessToken > docker_token
+                    docker login $AZURE_REGISTRY_ADDRESS --username $DOCKER_REGISTRY_USR --password-stdin < docker_token
                     docker pull ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
                     '''
                 }
@@ -85,12 +93,116 @@ pipeline {
         }
         stage('Create new tag') {
             steps {
-                sh 'echo TODO'
+                script {
+                    env.IMAGE_COMMIT_ID = sh(
+                        returnStdout: true,
+                        script: '''
+                        docker inspect --format '{{ index .Config.Labels "COMMIT_ID" }}' \
+                        ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
+                        '''
+                    ).trim()
+                    echo "Following commit will be selected to create tag: ${env.IMAGE_COMMIT_ID}"
+                    dir('checkout') {
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [
+                                [name: env.GIT_BRANCH]
+                            ],
+                            extensions: [
+                                [
+                                    $class: 'CloneOption',
+                                    honorRefspec: true,
+                                    noTags: false,
+                                    shallow: false
+                                ]
+                            ],
+                            userRemoteConfigs: [
+                                [
+                                    credentialsId: scm.userRemoteConfigs[0].credentialsId,
+                                    url: env.GIT_URL
+                                ]
+                            ]
+                        ])
+                        def gitRepoTags = sh(
+                            returnStdout: true,
+                            script: 'git tag --sort=-v:refname'
+                        ).split()
+                        if (!gitRepoTags) {
+                            echo "No tags found in repo ${env.GIT_URL} in branch ${env.GIT_BRANCH}"
+                            nextMajorVersion = '1.0.0'
+                            nextMinorVersion = 'N/A'
+                            nextPatchVersion = 'N/A'
+                            echo "Creating automatically initial version: ${nextMajorVersion}"
+                        } else {
+                            echo "Following tags were found in repo ${env.GIT_URL} in branch ${env.GIT_BRANCH}:"
+                            echo "${gitRepoTags}"
+                            def lastVersion = gitRepoTags.first()
+                            echo "Last version: ${lastVersion}"
+                            def (major, minor, patch) = lastVersion.tokenize('.').collect { it.toInteger() }
+                            nextMajorVersion = "${major + 1}.0.0"
+                            nextMinorVersion = "${major}.${minor + 1}.0"
+                            nextPatchVersion = "${major}.${minor}.${patch + 1}"
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            env.NEW_RELEASE_TAG = input(
+                                message: 'Provide new tag to be created',
+                                parameters: [
+                                    string(
+                                        name: 'New tag to be created',
+                                        defaultValue: 'Put version here',
+                                        description: 'Possible versions:\n\n' +
+                                        "Major: ${nextMajorVersion}\n" +
+                                        "Minor: ${nextMinorVersion}\n" +
+                                        "Patch: ${nextPatchVersion}",
+                                        trim: true
+                                    )
+                                ]
+                            )
+                        }
+                        if (!(env.NEW_RELEASE_TAG =~ '[0-9]+\\.[0-9]+\\.[0-9]+')) {
+                            error('Invalid tag, it should have format X.X.X!')
+                        }
+                        if (gitRepoTags.contains(env.NEW_RELEASE_TAG)) {
+                            error("Tag ${env.NEW_RELEASE_TAG} already exists!")
+                        }
+                        echo "Creating git tag..."
+                        sh '''
+                        git config --global user.email "jenkins-bot@thinkbox.pl"
+                        git config --global user.name "Jenkins Bot"
+                        git tag -a ${NEW_RELEASE_TAG} ${IMAGE_COMMIT_ID} -m "Version ${NEW_RELEASE_TAG}"
+                        '''
+                        echo "Tagging docker image..."
+                        sh '''
+                        docker tag ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG} \
+                        ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}
+                        '''
+                    }
+                }
             }
         }
-        stage('Promote') {
+        stage('Promote image') {
             steps {
-                sh 'echo TODO'
+                script {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'github-access-token-mrachuta',
+                            passwordVariable: 'GIT_PASSWORD',
+                            usernameVariable: 'GIT_USERNAME'
+                        )
+                    ]) {
+                        try {
+                            echo 'Pushing git tag to repository...'
+                            sh 'git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_URL#https://} --tags'
+                            echo 'Pushing tagged image to registry...'
+                            sh 'docker push ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}'
+                        } catch(err) {
+                            echo "Following error occured: ${err}"
+                            echo 'Reverting changes...'
+                            sh 'az acr repository delete --name ${AZURE_REGISTRY_ADDRESS} --image ${APP_NAME}:${NEW_RELEASE_TAG} || true'
+                            sh 'git push --delete https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_URL#https://} ${NEW_RELEASE_TAG} || true'
+                        }
+                    }
+                }
             }
         }
         stage('Deploy to target environment') {
@@ -107,7 +219,7 @@ pipeline {
                     --namespace "$TARGET_ENV" \
                     --values ./helm/environments/${TARGET_ENV}.yaml \
                     --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
-                    --set image.tag="${TAG_NAME}" \
+                    --set image.tag="${NEW_RELEASE_TAG}" \
                     --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
                     --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
                     '''
