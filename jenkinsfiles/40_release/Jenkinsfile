@@ -30,9 +30,11 @@ pipeline {
                 script {
                     env.GIT_BRANCH = scm.branches[0].name
                     env.GIT_URL = scm.userRemoteConfigs[0].url
-                    // TODO: Allow to build only from development branch
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
+                    if (!(env.GIT_BRANCH = 'development')) {
+                        error('You can use this pipeline only from development branch!')
+                    }
                     echo 'Exposing Azure-specific env variables...'
                     configFileProvider([
                         configFile(
