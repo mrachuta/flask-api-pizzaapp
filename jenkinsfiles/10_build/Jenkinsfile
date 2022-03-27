@@ -57,6 +57,8 @@ pipeline {
         stage('Prepare variables') {
             steps {
                 script {
+                    echo "Git repo url: ${env.GIT_URL}"
+                    echo "Git branch: ${env.GIT_BRANCH}"
                     echo 'Exposing Azure-specific env variables...'
                     configFileProvider([
                         configFile(
