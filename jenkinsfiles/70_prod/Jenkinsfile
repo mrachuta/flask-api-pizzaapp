@@ -19,7 +19,6 @@ pipeline {
         )
         durabilityHint('PERFORMANCE_OPTIMIZED')
         ansiColor('xterm')
-        skipDefaultCheckout()
     }
     environment {
         PATH = "$PATH:$HOME/.local/bin"
@@ -43,8 +42,8 @@ pipeline {
                         currentBuild.getBuildCauses().toString().contains('BranchIndexingCause') || 
                         currentBuild.getBuildCauses().toString().contains('Branch event')
                     ) {
-                        echo 'Build aborted because of an external trigger!'
                         currentBuild.result = 'ABORTED'
+                        error('Build aborted because of an external trigger!')
                     }
                     if (!(allowedUsers.contains(triggerUser))) {
                         error("You are not allowed to deploy to ${env.TARGET_ENV}!")
@@ -100,12 +99,6 @@ pipeline {
                         )
                     }
                     echo "Image tag selected to deploy: ${env.SELECTED_TAG}"
-                    sh '''
-                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
-                    --output tsv --query accessToken > docker_token
-                    docker login $AZURE_REGISTRY_ADDRESS --username $DOCKER_REGISTRY_USR --password-stdin < docker_token
-                    docker pull ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
-                    '''
                 }
             }
         }

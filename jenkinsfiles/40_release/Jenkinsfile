@@ -36,8 +36,8 @@ pipeline {
                         currentBuild.getBuildCauses().toString().contains('BranchIndexingCause') || 
                         currentBuild.getBuildCauses().toString().contains('Branch event')
                     ) {
-                        echo 'Build aborted because of an external trigger!'
                         currentBuild.result = 'ABORTED'
+                        error('Build aborted because of an external trigger!')
                     }
                     if (!(env.GIT_BRANCH == 'development')) {
                         error('You can use this pipeline only from development branch!')
