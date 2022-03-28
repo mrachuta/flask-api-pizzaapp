@@ -39,19 +39,19 @@ pipeline {
                     echo "Triggered by: ${triggerUser}"
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
+                    if (
+                        currentBuild.getBuildCauses().toString().contains('BranchIndexingCause') || 
+                        currentBuild.getBuildCauses().toString().contains('Branch event')
+                    ) {
+                        echo 'Build aborted because of an external trigger!'
+                        currentBuild.result = 'ABORTED'
+                    }
                     if (!(allowedUsers.contains(triggerUser))) {
                         error("You are not allowed to deploy to ${env.TARGET_ENV}!")
                     }
                     // if (!(env.GIT_BRANCH == 'development')) {
                     //     error('You can use this pipeline only from development branch!')
                     // }
-                    if (
-                        currentBuild.getBuildCauses().toString().contains('BranchIndexingCause') || 
-                        currentBuild.getBuildCauses().toString().contains('Branch event')
-                    ) {
-                        error('Build aborted because of an external trigger!')
-                        currentBuild.result = 'ABORTED'
-                    }
                     echo 'Exposing Azure-specific env variables...'
                     configFileProvider([
                         configFile(

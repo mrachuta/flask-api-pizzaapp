@@ -32,15 +32,15 @@ pipeline {
                     env.GIT_URL = scm.userRemoteConfigs[0].url
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
-                    if (!(env.GIT_BRANCH == 'development')) {
-                        error('You can use this pipeline only from development branch!')
-                    }
                     if (
                         currentBuild.getBuildCauses().toString().contains('BranchIndexingCause') || 
                         currentBuild.getBuildCauses().toString().contains('Branch event')
                     ) {
-                        error('Build aborted because of an external trigger!')
+                        echo 'Build aborted because of an external trigger!'
                         currentBuild.result = 'ABORTED'
+                    }
+                    if (!(env.GIT_BRANCH == 'development')) {
+                        error('You can use this pipeline only from development branch!')
                     }
                     echo 'Exposing Azure-specific env variables...'
                     configFileProvider([
