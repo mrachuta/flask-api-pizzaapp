@@ -24,7 +24,6 @@ pipeline {
         PATH = "$PATH:$HOME/.local/bin"
         APP_NAME = 'flask-api-pizzaapp'
         TARGET_ENV = 'prod-env'
-        DATABASE_CRED = credentials('flask-api-pizzaapp-database-prod-env')
         AZURE_PRINCIPAL = credentials('azure-aks-testcluster-service-principal')
         DOCKER_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
     }
@@ -35,6 +34,7 @@ pipeline {
                     def triggerUser= currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').userId[0]
                     env.GIT_BRANCH = scm.branches[0].name
                     env.GIT_URL = scm.userRemoteConfigs[0].url
+                    dbCredentialsId = 'flask-api-pizzaapp-database-prod-env'
                     echo "Triggered by: ${triggerUser}"
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
@@ -48,9 +48,9 @@ pipeline {
                     if (!(allowedUsers.contains(triggerUser))) {
                         error("You are not allowed to deploy to ${env.TARGET_ENV}!")
                     }
-                    // if (!(env.GIT_BRANCH == 'development')) {
-                    //     error('You can use this pipeline only from development branch!')
-                    // }
+                    if (!(env.GIT_BRANCH == 'master')) {
+                        error('You can use this pipeline only from master branch!')
+                    }
                     echo 'Exposing Azure-specific env variables...'
                     configFileProvider([
                         configFile(
@@ -83,8 +83,11 @@ pipeline {
                     '''
                     def imageTags = sh(
                         returnStdout: true,
-                        script: 'az acr repository show-tags --name ${AZURE_REGISTRY_ADDRESS} \
-                        --repository ${APP_NAME} --orderby time_desc --output tsv | grep \'[0-9]\\+.[0-9]\\+.[0-9]\\+\''
+                        script: '''
+                        az acr repository show-tags --name ${AZURE_REGISTRY_ADDRESS} \
+                        --repository ${APP_NAME} --orderby time_desc --output tsv | \
+                        grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'
+                         '''
                     ).trim()
                     timeout(time: 5, unit: 'MINUTES') {
                         env.SELECTED_TAG = input(
@@ -106,20 +109,28 @@ pipeline {
             steps {
                 script {
                     echo "Deploying to ${env.TARGET_ENV}"
-                    sh '''
-                    az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP_NAME \
-                    --name $AZURE_KUBE_CLUSTER_NAME --admin
-                    helm upgrade --install $APP_NAME ./helm/$APP_NAME \
-                    --wait \
-                    --timeout 10m \
-                    --atomic \
-                    --namespace "$TARGET_ENV" \
-                    --values ./helm/environments/${TARGET_ENV}.yaml \
-                    --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
-                    --set image.tag="${SELECTED_TAG}" \
-                    --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
-                    --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
-                    '''
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: dbCredentialsId,
+                            passwordVariable: 'DATABASE_CRED_PSW',
+                            usernameVariable: 'DATABASE_CRED_USR'
+                        )
+                    ]) {
+                        sh '''
+                        az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP_NAME \
+                        --name $AZURE_KUBE_CLUSTER_NAME --admin
+                        helm upgrade --install $APP_NAME ./helm/$APP_NAME \
+                        --wait \
+                        --timeout 10m \
+                        --atomic \
+                        --namespace "$TARGET_ENV" \
+                        --values ./helm/environments/${TARGET_ENV}.yaml \
+                        --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
+                        --set image.tag="${SELECTED_TAG}" \
+                        --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
+                        --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
+                        '''
+                    }
                 }
             }
         }

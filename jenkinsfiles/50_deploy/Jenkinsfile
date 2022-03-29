@@ -35,6 +35,19 @@ pipeline {
                     env.GIT_BRANCH = scm.branches[0].name
                     env.GIT_URL = scm.userRemoteConfigs[0].url
                     env.TARGET_ENV = params.TARGET_ENV
+                    switch (env.TARGET_ENV) {
+                        case 'dev-env':
+                            dbCredentialsId = 'flask-api-pizzaapp-database-dev-env'
+                            imageFilter = ''
+                            break;
+                        case 'uat-env':
+                            dbCredentialsId = 'flask-api-pizzaapp-database-uat-env'
+                            imageFilter = " | grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'"
+                            break;
+                        default:
+                            error('Unknow environment!')
+                            break;
+                    }
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
                     echo "Selected environment: ${env.TARGET_ENV}"
@@ -45,9 +58,9 @@ pipeline {
                         currentBuild.result = 'ABORTED'
                         error('Build aborted because of an external trigger!')
                     }
-                    // if (!(env.GIT_BRANCH == 'development')) {
-                    //     error('You can use this pipeline only from development branch!')
-                    // }
+                    if (!(env.GIT_BRANCH == 'development')) {
+                        error('You can use this pipeline only from development branch!')
+                    }
                     echo 'Exposing Azure-specific env variables...'
                     configFileProvider([
                         configFile(
@@ -65,19 +78,6 @@ pipeline {
                         env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
                         env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
                         env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
-                    }
-                    switch(env.TARGET_ENV) {
-                        case 'dev-env':
-                            dbCredentialsId = 'flask-api-pizzaapp-database-dev-env'
-                            imageFilter = ''
-                            break;
-                        case 'uat-env':
-                            dbCredentialsId = 'flask-api-pizzaapp-database-uat-env'
-                            imageFilter = " | grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'"
-                            break;
-                        default:
-                            error('Unknow environment!')
-                            break;
                     }
                 }
             }
