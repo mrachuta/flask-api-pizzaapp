@@ -1,0 +1,143 @@
+def allowedUsers = [
+    'mrachuta',
+    'tdeveloper'
+]
+
+pipeline {
+    agent {
+        label 'python'
+    }
+    options {
+        buildDiscarder(
+            logRotator(numToKeepStr: '5')
+        )
+        timestamps()
+        disableConcurrentBuilds()
+        timeout(
+            time: 1,
+            unit: 'HOURS'
+        )
+        durabilityHint('PERFORMANCE_OPTIMIZED')
+        ansiColor('xterm')
+    }
+    environment {
+        PATH = "$PATH:$HOME/.local/bin"
+        APP_NAME = 'flask-api-pizzaapp'
+        TARGET_ENV = 'prod-env'
+        AZURE_PRINCIPAL = credentials('azure-aks-testcluster-service-principal')
+        DOCKER_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
+    }
+    stages {
+        stage('Prepare variables') {
+            steps {
+                script {
+                    def triggerUser= currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').userId[0]
+                    env.GIT_BRANCH = scm.branches[0].name
+                    env.GIT_URL = scm.userRemoteConfigs[0].url
+                    dbCredentialsId = 'flask-api-pizzaapp-database-prod-env'
+                    echo "Triggered by: ${triggerUser}"
+                    echo "Git repo url: ${env.GIT_URL}"
+                    echo "Git branch: ${env.GIT_BRANCH}"
+                    if (
+                        currentBuild.getBuildCauses().toString().contains('BranchIndexingCause') || 
+                        currentBuild.getBuildCauses().toString().contains('Branch event')
+                    ) {
+                        currentBuild.result = 'ABORTED'
+                        error('Build aborted because of an external trigger!')
+                    }
+                    if (!(allowedUsers.contains(triggerUser))) {
+                        error("You are not allowed to deploy to ${env.TARGET_ENV}!")
+                    }
+                    if (!(env.GIT_BRANCH == 'master')) {
+                        error('You can use this pipeline only from master branch!')
+                    }
+                    echo 'Exposing Azure-specific env variables...'
+                    configFileProvider([
+                        configFile(
+                            fileId: 'azure-config',
+                            variable: 'AZURE_CONFIGURATION'
+                        )
+                    ]) {
+                        // Split by each line, then split by '=' and remove quotes
+                        azureVariables = readFile("${env.AZURE_CONFIGURATION}").split('\n').collect { azVar ->
+                            azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
+                        }
+                        env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
+                        env.AZURE_TENNANT = azureVariables[1]
+                        env.AZURE_TENNANT_ID = azureVariables[2]
+                        env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
+                        env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
+                        env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
+                    }
+                }
+            }
+        }
+        stage('Download Docker image') {
+            steps {
+                script {
+                    sh '''
+                    az login --service-principal \
+                    --username $AZURE_PRINCIPAL_USR \
+                    --password $AZURE_PRINCIPAL_PSW \
+                    --tenant $AZURE_TENNANT
+                    '''
+                    def imageTags = sh(
+                        returnStdout: true,
+                        script: '''
+                        az acr repository show-tags --name ${AZURE_REGISTRY_ADDRESS} \
+                        --repository ${APP_NAME} --orderby time_desc --output tsv | \
+                        grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'
+                         '''
+                    ).trim()
+                    timeout(time: 5, unit: 'MINUTES') {
+                        env.SELECTED_TAG = input(
+                            message: 'Select image to deploy',
+                            parameters: [
+                                choice(
+                                    name: "Image tag to be used to deploy to ${env.TARGET_ENV}",
+                                    choices: imageTags,
+                                    description: "Select release that will be deployed to ${env.TARGET_ENV}"
+                                )
+                            ]
+                        )
+                    }
+                    echo "Image tag selected to deploy: ${env.SELECTED_TAG}"
+                }
+            }
+        }
+        stage('Deploy to target environment') {
+            steps {
+                script {
+                    echo "Deploying to ${env.TARGET_ENV}"
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: dbCredentialsId,
+                            passwordVariable: 'DATABASE_CRED_PSW',
+                            usernameVariable: 'DATABASE_CRED_USR'
+                        )
+                    ]) {
+                        sh '''
+                        az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP_NAME \
+                        --name $AZURE_KUBE_CLUSTER_NAME --admin
+                        helm upgrade --install $APP_NAME ./helm/$APP_NAME \
+                        --wait \
+                        --timeout 10m \
+                        --atomic \
+                        --namespace "$TARGET_ENV" \
+                        --values ./helm/environments/${TARGET_ENV}.yaml \
+                        --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
+                        --set image.tag="${SELECTED_TAG}" \
+                        --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
+                        --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+    post {
+        cleanup {
+            cleanWs()
+        }
+    }
+}
