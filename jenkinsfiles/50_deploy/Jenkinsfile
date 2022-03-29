@@ -34,7 +34,7 @@ pipeline {
                 script {
                     env.GIT_BRANCH = scm.branches[0].name
                     env.GIT_URL = scm.userRemoteConfigs[0].url
-                    env.TARGET_ENV = param.TARGET_ENV
+                    env.TARGET_ENV = params.TARGET_ENV
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
                     echo "Selected environment: ${env.TARGET_ENV}"
@@ -45,9 +45,9 @@ pipeline {
                         currentBuild.result = 'ABORTED'
                         error('Build aborted because of an external trigger!')
                     }
-                    if (!(env.GIT_BRANCH == 'development')) {
-                        error('You can use this pipeline only from development branch!')
-                    }
+                    // if (!(env.GIT_BRANCH == 'development')) {
+                    //     error('You can use this pipeline only from development branch!')
+                    // }
                     echo 'Exposing Azure-specific env variables...'
                     configFileProvider([
                         configFile(
