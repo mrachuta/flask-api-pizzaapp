@@ -6,3 +6,5 @@ env:
     FLASK_DB_PORT: "5432"
     FLASK_DB_NAME: "bpzdoeiq"
     FLASK_JWT_SECRET: "prod123prod123"
+    ENV_DETAILED_NAME: "prod-env"
+    BANNER_COLOR: ""

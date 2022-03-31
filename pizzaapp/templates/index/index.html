@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% if banner_color is not none %}
+    <center>
+        <h2>
+            <p style="color:{{ banner_color }}">ENVIRONMENT: {{ env_detailed_name }}</p>
+        </h2>
+    </center>
+{% endif %}
     <h1>Hello World!</h1>
     <p>See available pages:</p>
     <ul>

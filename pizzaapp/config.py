@@ -1,10 +1,11 @@
 import os
 
 
-class Development:
+
+class Local:
 
     """
-    Development environment configuration
+    Local environment configuration
     """
 
     DEBUG = True
@@ -13,6 +14,23 @@ class Development:
     JWT_SECRET_KEY = "testjwtsecret123"
     SQLALCHEMY_TRACK_MODIFICATIONS = True
 
+class Development:
+
+    """
+    Development environment configurations
+    """
+
+    DEBUG = True
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = f"\
+{os.environ.get('FLASK_DB_TYPE')}://\
+{os.environ.get('FLASK_DB_USER')}:\
+{os.environ.get('FLASK_DB_PASS')}@\
+{os.environ.get('FLASK_DB_HOST')}:\
+{os.environ.get('FLASK_DB_PORT')}/\
+{os.environ.get('FLASK_DB_NAME')}"
+    JWT_SECRET_KEY = os.environ.get("FLASK_JWT_SECRET")
+    SQLALCHEMY_TRACK_MODIFICATIONS = True
 
 class Production:
 
@@ -34,6 +52,7 @@ class Production:
 
 
 app_config = {
+    "local": Local,
     "development": Development,
     "production": Production,
 }

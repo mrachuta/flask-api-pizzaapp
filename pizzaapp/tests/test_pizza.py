@@ -11,7 +11,7 @@ class PizzaTest(unittest.TestCase):
 
     def setUp(self):
 
-        self.app = create_app("development")
+        self.app = create_app("local")
         self.app.config["TESTING"] = True
         self.client = self.app.test_client()
 

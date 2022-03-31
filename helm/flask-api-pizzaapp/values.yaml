@@ -25,6 +25,8 @@ env:
     FLASK_DB_PORT: ""
     FLASK_DB_NAME: ""
     FLASK_JWT_SECRET: ""
+    ENV_DETAILED_NAME: ""
+    BANNER_COLOR: ""
 
 podAnnotations: {}
 

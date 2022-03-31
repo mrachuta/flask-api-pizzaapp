@@ -1,8 +1,10 @@
 env:
   configMap:
-    FLASK_ENV: "production"
+    FLASK_ENV: "development"
     FLASK_DB_TYPE: "postgres"
     FLASK_DB_HOST: "kandula.db.elephantsql.com"
     FLASK_DB_PORT: "5432"
     FLASK_DB_NAME: "fnjewthn"
     FLASK_JWT_SECRET: "test123test123"
+    ENV_DETAILED_NAME: "dev-env"
+    BANNER_COLOR: "yellow"
