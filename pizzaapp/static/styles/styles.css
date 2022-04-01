@@ -1,0 +1,12 @@
+div.banner {
+    height: 30px;
+    width: 100%;
+    background-color: lightgray;
+    text-align: center;
+}
+
+div.content {
+    height: 500px;
+    width: 100%;
+    text-align: left;
+}
