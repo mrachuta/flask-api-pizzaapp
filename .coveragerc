@@ -1,0 +1,2 @@
+[run]
+omit = pizzaapp/tests/*, pizzaapp/config.py, manage.py
