@@ -8,9 +8,9 @@
   <title>Unnamed page - PizzApp</title>
   {% endif %}
   <meta name="description" content="PizzaApp - first Flask API">
-  <link rel="stylesheet" href="css/styles.css?v=1.0">
+  <link rel="stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/styles.css') }}">
 </head>
 <body>
- <p>{% block content %}{% endblock %}</p>
+ {% block content %}{% endblock %}
 </body>
 </html>
