@@ -4,11 +4,11 @@ This file contains main constructor for app
 
 import os
 from flask import Flask
+from flask import render_template
 from .config import app_config
 
 # Import of model is necessary
 from .models import db
-from flask import render_template
 from .views.pizza_view import pizza_api as pizza_blueprint
 
 
