@@ -1,0 +1,2 @@
+[MASTER]
+ignore-patterns=pizzaapp/tests/*, pizzaapp/config.py, manage.py
