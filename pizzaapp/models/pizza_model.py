@@ -3,8 +3,8 @@ This is a defitinion of pizza object in database
 """
 
 import datetime
-from . import db
 from marshmallow import fields, Schema, ValidationError
+from . import db
 
 # Found on SO
 # https://marshmallow.readthedocs.io/en/3.0/examples.html
