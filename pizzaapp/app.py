@@ -1,3 +1,7 @@
+"""
+This file contains main constructor for app
+"""
+
 import os
 from flask import Flask
 from .config import app_config

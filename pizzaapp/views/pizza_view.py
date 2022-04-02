@@ -1,3 +1,7 @@
+"""
+This is a definiton of available views
+"""
+
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 from flask import request, json, Response, Blueprint
@@ -109,6 +113,7 @@ def delete_pizza(pizza_id):
     """
     Delete a pizza
     """
+
     try:
         pizza = PizzaModel.get_pizza_by_id(pizza_id)
         pizza.delete()

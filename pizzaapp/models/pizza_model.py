@@ -1,3 +1,7 @@
+"""
+This is a defitinion of pizza object in database
+"""
+
 import datetime
 from . import db
 from marshmallow import fields, Schema, ValidationError
@@ -7,6 +11,11 @@ from marshmallow import fields, Schema, ValidationError
 
 
 def must_not_be_blank(data):
+
+    """
+    Validate if field is not empty
+    """
+
     if not data:
         raise ValidationError("This filed cannot be blank")
 
@@ -41,10 +50,20 @@ class PizzaModel(db.Model):
 
     @staticmethod
     def get_all_pizzas():
+
+        """
+        Return all available pizzas
+        """
+
         return PizzaModel.query.all()
 
     @staticmethod
     def get_pizza_by_id(pizza_id):
+
+        """
+        Return specific pizza by id
+        """
+
         return PizzaModel.query.get(pizza_id)
 
     # Not necessary yet
@@ -53,16 +72,31 @@ class PizzaModel(db.Model):
     #     return PizzaModel.query.filter_by(name=name)
 
     def save(self):
+
+        """
+        Save data
+        """
+
         db.session.add(self)
         db.session.commit()
 
     def update(self, data):
+
+        """
+        Modify data
+        """
+
         for key, item in data.items():
             setattr(self, key, item)
         self.modified_at = datetime.datetime.utcnow()
         db.session.commit()
 
     def delete(self):
+
+        """
+        Delete data
+        """
+
         db.session.delete(self)
         db.session.commit()
 
