@@ -1,22 +1,86 @@
+"""
+This is a defitinion of unit tests
+"""
+
+import re
+import os
 import json
 import unittest
+from unittest import mock
 from ..app import create_app, db
-
 
 class PizzaTest(unittest.TestCase):
 
     """
-    Users Test Case
+    Add evironment variables to mock
+    https://adamj.eu/tech/2020/10/13/how-to-mock-environment-variables-with-pythons-unittest/
     """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.env_patcher = mock.patch.dict(
+            os.environ, {"ENV_DETAILED_NAME": "local", "BANNER_COLOR": "green"}
+        )
+        cls.env_patcher.start()
+
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+
+        cls.env_patcher.stop()
 
     def setUp(self):
 
+        """
+        Setup mock with profile local
+        """
+
+        super().setUp()
         self.app = create_app("local")
         self.app.config["TESTING"] = True
         self.client = self.app.test_client()
 
         with self.app.app_context():
             db.create_all()
+
+    def test_check_page_title(self):
+
+        res_one = self.client.get("/")
+        print(res_one.get_data(as_text=True))
+        title = re.search(
+            "<title>(.*)</title>", res_one.get_data(as_text=True), re.IGNORECASE
+        )
+        self.assertEqual(title.group(1), "Welcome page - PizzaApp")
+
+    def test_check_banner_visibility(self):
+
+        res_one = self.client.get("/")
+        is_banner_visible = bool(
+            re.search(
+                '<div class="banner">', res_one.get_data(as_text=True), re.IGNORECASE
+            )
+        )
+        self.assertTrue(is_banner_visible)
+
+    def test_check_banner_color(self):
+
+        res_one = self.client.get("/")
+        banner_color = re.search(
+            '<p style="color:(.*)">ENVIRONMENT.*</p>',
+            res_one.get_data(as_text=True),
+            re.IGNORECASE,
+        )
+        self.assertEqual(banner_color.group(1), "green")
+
+    def test_check_banner_env(self):
+
+        res_one = self.client.get("/")
+        banner_env = re.search(
+            "<p.*>ENVIRONMENT: (.*)</p>", res_one.get_data(as_text=True), re.IGNORECASE
+        )
+        self.assertEqual(banner_env.group(1), "local")
 
     def test_create_pizza(self):
 
