@@ -71,12 +71,15 @@ pipeline {
                             azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
                         }
                         env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
-                        env.AZURE_TENNANT = azureVariables[1]
-                        env.AZURE_TENNANT_ID = azureVariables[2]
+                        env.AZURE_TENANT = azureVariables[1]
+                        env.AZURE_TENANT_ID = azureVariables[2]
                         env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
                         env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
                         env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
+                        env.AZURE_INGRESS_DOMAIN = azureVariables[6]
                     }
+                    echo 'Exposing rest of variables...'
+                    env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
                 }
             }
         }
@@ -157,7 +160,7 @@ pipeline {
                     az login --service-principal \
                     --username $AZURE_PRINCIPAL_USR \
                     --password $AZURE_PRINCIPAL_PSW \
-                    --tenant $AZURE_TENNANT
+                    --tenant $AZURE_TENANT
                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
                     --output tsv --query accessToken > docker_token
                     docker login $AZURE_REGISTRY_ADDRESS --username $DOCKER_REGISTRY_USR --password-stdin < docker_token
@@ -193,6 +196,7 @@ pipeline {
                         --values ./helm/environments/${TARGET_ENV}.yaml \
                         --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
                         --set image.tag="${TAG_NAME}" \
+                        --set ingress.host="${INGRESS_HOST}" \
                         --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
                         --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
                         '''
@@ -208,7 +212,7 @@ pipeline {
                 az login --service-principal \
                 --username $AZURE_PRINCIPAL_USR \
                 --password $AZURE_PRINCIPAL_PSW \
-                --tenant $AZURE_TENNANT
+                --tenant $AZURE_TENANT
                 '''
                 // Get all images, sort out release versions (reverse grep)
                 obsoleteImageList = sh(
