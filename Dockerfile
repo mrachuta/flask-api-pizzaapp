@@ -1,12 +1,15 @@
 FROM nexus3.k8s.lan:50000/python:3.9.10-slim-bullseye-webdev
 
-ADD manage.py requirements.txt run.sh /app/
-ADD pizzaapp /app/pizzaapp/
+# Base image is running as user python (uid:1001)
+# and group python (gid:1001)
 
-# /app is WORKDIR, inherited from base image
+ENV CONUSER=python \
+    CONGROUP=python
 
-RUN chown -R python:python . && \
-    chmod +x run.sh manage.py && \
+ADD --chown=${CONUSER}:${CONGROUP} manage.py requirements.txt run.sh /app/
+ADD --chown=${CONUSER}:${CONGROUP} pizzaapp /app/pizzaapp/
+
+RUN chmod +x run.sh manage.py &&\
     pip install -r requirements.txt
 
 CMD ["./run.sh"]
