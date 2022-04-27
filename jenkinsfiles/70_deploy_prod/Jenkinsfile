@@ -24,8 +24,8 @@ pipeline {
         PATH = "$PATH:$HOME/.local/bin"
         APP_NAME = 'flask-api-pizzaapp'
         TARGET_ENV = 'prod-env'
-        AZURE_PRINCIPAL = credentials('azure-aks-testcluster-service-principal')
-        DOCKER_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
+        AZURE_SP = credentials('azure-aks-testcluster-service-principal')
+        AZURE_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
     }
     stages {
         stage('Prepare variables') {
@@ -63,12 +63,16 @@ pipeline {
                             azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
                         }
                         env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
-                        env.AZURE_TENNANT = azureVariables[1]
-                        env.AZURE_TENNANT_ID = azureVariables[2]
+                        env.AZURE_TENANT = azureVariables[1]
+                        env.AZURE_TENANT_ID = azureVariables[2]
                         env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
                         env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
                         env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
+                        env.AZURE_INGRESS_DOMAIN = azureVariables[6]
+                        env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
                     }
+                    echo 'Exposing other variables...'
+                    env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
                 }
             }
         }
@@ -77,9 +81,9 @@ pipeline {
                 script {
                     sh '''
                     az login --service-principal \
-                    --username $AZURE_PRINCIPAL_USR \
-                    --password $AZURE_PRINCIPAL_PSW \
-                    --tenant $AZURE_TENNANT
+                    --username $AZURE_SP_USR \
+                    --password $AZURE_SP_PSW \
+                    --tenant $AZURE_TENANT
                     '''
                     def imageTags = sh(
                         returnStdout: true,
@@ -127,6 +131,7 @@ pipeline {
                         --values ./helm/environments/${TARGET_ENV}.yaml \
                         --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
                         --set image.tag="${SELECTED_TAG}" \
+                        --set ingress.host="${INGRESS_HOST}" \
                         --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
                         --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
                         '''
