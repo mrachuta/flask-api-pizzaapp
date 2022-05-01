@@ -1,17 +1,15 @@
-FROM python:3.9.10-slim-bullseye
-  
-ADD manage.py requirements.txt run.sh /app/
-ADD pizzaapp /app/pizzaapp/
+FROM nexus3.k8s.lan:50000/python:3.9.10-slim-bullseye-webdev
 
-WORKDIR /app
+# Base image is running as user python (uid:1001)
+# and group python (gid:1001)
 
-RUN apt update && apt install -y libpq-dev gcc &&\
-    useradd -ms /bin/bash -u 1001 python &&\
-    chown -R python:python /app &&\
-    chmod +x run.sh manage.py &&\
+ENV CONUSER=python \
+    CONGROUP=python
+
+ADD --chown=${CONUSER}:${CONGROUP} manage.py requirements.txt run.sh /app/
+ADD --chown=${CONUSER}:${CONGROUP} pizzaapp /app/pizzaapp/
+
+RUN chmod +x run.sh manage.py &&\
     pip install -r requirements.txt
 
-EXPOSE 5000
-USER python
-
-CMD ["/app/run.sh"]
+CMD ["./run.sh"]

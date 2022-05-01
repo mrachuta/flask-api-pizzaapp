@@ -26,19 +26,23 @@ spec:
   {{- if and .Values.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
   ingressClassName: {{ .Values.ingress.className }}
   {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
   tls:
     - hosts:
-      - {{ printf "%s-%s.aks.thinkbox.pl" .Release.Name .Release.Namespace | quote }}
-      secretName: {{ printf "%s-%s-cert" .Release.Name .Release.Namespace | quote }}
+      - {{ .Values.ingress.host | quote }}
+      {{- if .Values.ingress.tls.secretName }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+      {{- else }}
+      secretName: {{ printf "%s-cert" .Values.ingress.host | replace "." "-" | quote }}
+      {{- end }}
+  {{- end }}
   rules:
-    {{- range .Values.ingress.hosts }}
-    - host: {{ printf "%s-%s.aks.thinkbox.pl" $.Release.Name $.Release.Namespace | quote }}
+    - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            {{- if and .pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: {{ .pathType }}
+          - path: /
+            {{- if semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion }}
+            pathType: ImplementationSpecific
             {{- end }}
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
@@ -50,6 +54,4 @@ spec:
               serviceName: {{ $fullName }}
               servicePort: {{ $svcPort }}
               {{- end }}
-          {{- end }}
-    {{- end }}
 {{- end }}

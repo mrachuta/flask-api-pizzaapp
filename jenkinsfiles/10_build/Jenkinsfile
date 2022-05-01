@@ -22,8 +22,10 @@ pipeline {
         APP_NAME = 'flask-api-pizzaapp'
         TAG_NAME = "${env.GIT_BRANCH.replaceAll('/', '-').take(23)}-${env.BUILD_NUMBER}"
         TARGET_ENV = 'dev-env'
-        AZURE_PRINCIPAL = credentials('azure-aks-testcluster-service-principal')
-        DOCKER_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
+        AZURE_SP = credentials('azure-aks-testcluster-service-principal')
+        AZURE_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
+        TECHNICAL_ACCOUNT = credentials('technical-account-ldap')
+        PRIVATE_REGISTRY_ADDRESS = 'nexus3.k8s.lan:50000'
     }
     parameters {
         booleanParam(
@@ -71,12 +73,15 @@ pipeline {
                             azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
                         }
                         env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
-                        env.AZURE_TENNANT = azureVariables[1]
-                        env.AZURE_TENNANT_ID = azureVariables[2]
+                        env.AZURE_TENANT = azureVariables[1]
+                        env.AZURE_TENANT_ID = azureVariables[2]
                         env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
                         env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
                         env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
+                        env.AZURE_INGRESS_DOMAIN = azureVariables[6]
                     }
+                    echo 'Exposing rest of variables...'
+                    env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
                 }
             }
         }
@@ -90,8 +95,7 @@ pipeline {
             steps {
                 sh 'find . -name \\*.py | xargs pylint -f parseable | tee pylint.log'
                 recordIssues(
-                    tool: pyLint(pattern: 'pylint.log'),
-                    unstableTotalHigh: 100,
+                    tool: pyLint(pattern: 'pylint.log')
                 )
             }
         }
@@ -106,16 +110,8 @@ pipeline {
                     adapters: [
                         coberturaAdapter(
                             path: 'coverage-reports/pycov/report.xml',
-                            thresholds: [
-                                [
-                                    thresholdTarget: 'Aggregated Report',
-                                    unhealthyThreshold: 30.0,
-                                    unstableThreshold: 50.0
-                                ]
-                            ]
                         )
-                    ],
-                    sourceFileResolver: sourceFiles('NEVER_STORE')
+                    ]
                 )
             }
         }
@@ -124,15 +120,18 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool('sonarqube_scanner_default')
-                    withSonarQubeEnv('sonarqube_default') {
-                        sh("${scannerHome}/bin/sonar-scanner")
-                    }
-                    timeout(time: 10, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            error "Pipeline aborted due to quality gate failure: ${qg.status}"
-                        } else {
-                            sonarQGStatus = qg.status
+                    def nodeHome = tool('nodejs_default')
+                    withEnv(["PATH+EXTRA=${scannerHome}/bin:${nodeHome}/bin"]) {
+                        withSonarQubeEnv('sonarqube_default') {
+                            sh('sonar-scanner')
+                        }
+                        timeout(time: 10, unit: 'MINUTES') {
+                            def qg = waitForQualityGate()
+                            if (qg.status != 'OK') {
+                                error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                            } else {
+                                sonarQGStatus = qg.status
+                            }
                         }
                     }
                 }
@@ -146,8 +145,13 @@ pipeline {
                         error('You canot create image without passing all previous stages!')
                     }
                     echo "Building image with tag: ${env.TAG_NAME}"
+                    sh '''
+                    echo "$TECHNICAL_ACCOUNT_PSW" | \
+                    docker login $PRIVATE_REGISTRY_ADDRESS --username $TECHNICAL_ACCOUNT_USR --password-stdin
+                    '''
                     sh """
-                    docker build . -t ${env.APP_NAME}:${env.TAG_NAME} \
+                    docker build . --pull --network host \
+                    --tag ${env.APP_NAME}:${env.TAG_NAME} \
                     --label COMMIT_ID=${env.GIT_COMMIT} \
                     --label BRANCH=${env.GIT_BRANCH} \
                     --label BUILD_NO=${env.BUILD_NUMBER} \
@@ -155,12 +159,12 @@ pipeline {
                     """
                     sh '''
                     az login --service-principal \
-                    --username $AZURE_PRINCIPAL_USR \
-                    --password $AZURE_PRINCIPAL_PSW \
-                    --tenant $AZURE_TENNANT
+                    --username $AZURE_SP_USR \
+                    --password $AZURE_SP_PSW \
+                    --tenant $AZURE_TENANT
                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
-                    --output tsv --query accessToken > docker_token
-                    docker login $AZURE_REGISTRY_ADDRESS --username $DOCKER_REGISTRY_USR --password-stdin < docker_token
+                    --output tsv --query accessToken | \
+                    docker login $AZURE_REGISTRY_ADDRESS --username $AZURE_REGISTRY_USR --password-stdin
                     docker tag ${APP_NAME}:${TAG_NAME} ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${TAG_NAME}
                     docker push ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${TAG_NAME}
                     '''
@@ -193,6 +197,7 @@ pipeline {
                         --values ./helm/environments/${TARGET_ENV}.yaml \
                         --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
                         --set image.tag="${TAG_NAME}" \
+                        --set ingress.host="${INGRESS_HOST}" \
                         --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
                         --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
                         '''
@@ -206,9 +211,9 @@ pipeline {
             script {
                 sh '''
                 az login --service-principal \
-                --username $AZURE_PRINCIPAL_USR \
-                --password $AZURE_PRINCIPAL_PSW \
-                --tenant $AZURE_TENNANT
+                --username $AZURE_SP_USR \
+                --password $AZURE_SP_PSW \
+                --tenant $AZURE_TENANT
                 '''
                 // Get all images, sort out release versions (reverse grep)
                 obsoleteImageList = sh(
@@ -217,7 +222,7 @@ pipeline {
                     az acr manifest metadata list --registry $AZURE_REGISTRY_ADDRESS \
                     --name $APP_NAME --orderby time_asc \
                     --query "[?lastUpdateTime < '$(date --date='-30 days' '+%Y-%m-%d')'].tags[]" -o tsv |\
-                    grep -v '[0-9]\\+.[0-9]\\+.[0-9]\\+'
+                    grep -v '[0-9]\\+.[0-9]\\+.[0-9]\\+' || true
                     '''
                 ).split()
                 if (obsoleteImageList) {
