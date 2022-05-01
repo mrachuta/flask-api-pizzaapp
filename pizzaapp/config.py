@@ -1,6 +1,8 @@
+"""
+This is a defitinion of possible configuration profile
+"""
+
 import os
-
-
 
 class Local:
 

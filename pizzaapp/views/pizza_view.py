@@ -1,3 +1,7 @@
+"""
+This is a definiton of available views
+"""
+
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 from flask import request, json, Response, Blueprint
@@ -48,9 +52,8 @@ def get_all_pizzas():
         serialized_pizzas = pizza_schema.dump(pizzas, many=True)
         return custom_response(serialized_pizzas, 200)
 
-    else:
-        message = {"error": "No pizzas were found"}
-        return custom_response(message, 404)
+    message = {"error": "No pizzas were found"}
+    return custom_response(message, 404)
 
 
 @pizza_api.route("/<int:pizza_id>", methods=["GET"])
@@ -109,6 +112,7 @@ def delete_pizza(pizza_id):
     """
     Delete a pizza
     """
+
     try:
         pizza = PizzaModel.get_pizza_by_id(pizza_id)
         pizza.delete()
