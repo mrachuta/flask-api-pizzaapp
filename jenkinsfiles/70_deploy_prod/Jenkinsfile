@@ -31,7 +31,7 @@ pipeline {
         stage('Prepare variables') {
             steps {
                 script {
-                    def triggerUser= currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').userId[0]
+                    def triggerUser = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').userId[0]
                     env.GIT_BRANCH = scm.branches[0].name
                     env.GIT_URL = scm.userRemoteConfigs[0].url
                     dbCredentialsId = 'flask-api-pizzaapp-database-prod-env'
