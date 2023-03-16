@@ -2,7 +2,7 @@ def sonarQGStatus = ''
 
 pipeline {
     agent {
-        label 'python'
+        label 'azure-docker'
     }
     options {
         buildDiscarder(
@@ -229,7 +229,7 @@ pipeline {
                     obsoleteImageList.each { imageTag ->
                         echo "Deleting ${imageTag} -> older than 30 days!"
                         sh """
-                        az acr repository delete --name ${env.AZURE_REGISTRY_ADDRESS} \
+                        az acr repository delete --yes --name ${env.AZURE_REGISTRY_ADDRESS} \
                         --image ${env.APP_NAME}:${imageTag}
                         """
                     }
