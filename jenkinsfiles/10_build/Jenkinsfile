@@ -2,7 +2,7 @@ def sonarQGStatus = ''
 
 pipeline {
     agent {
-        label 'python'
+        label 'azure-docker'
     }
     options {
         buildDiscarder(
