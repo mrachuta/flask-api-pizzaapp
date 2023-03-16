@@ -212,7 +212,7 @@ pipeline {
                         } catch(err) {
                             echo "Following error occured: ${err}"
                             echo 'Reverting changes...'
-                            sh 'az acr repository delete --name ${AZURE_REGISTRY_ADDRESS} --image ${APP_NAME}:${NEW_RELEASE_TAG} || true'
+                            sh 'az acr repository delete --yes --name ${AZURE_REGISTRY_ADDRESS} --image ${APP_NAME}:${NEW_RELEASE_TAG} || true'
                             sh 'git push --delete https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_URL#https://} ${NEW_RELEASE_TAG} || true'
                         }
                     }
