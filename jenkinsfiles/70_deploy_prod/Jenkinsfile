@@ -5,7 +5,7 @@ def allowedUsers = [
 
 pipeline {
     agent {
-        label 'python'
+        label 'azure-docker'
     }
     options {
         buildDiscarder(
