@@ -193,8 +193,8 @@ pipeline {
                 script {
                     if (!params.RUN_LEAKED_SECRETS_CHECK || !params.RUN_LINTER || !params.RUN_UNIT_TESTS) {
                         error(
-                            'You canot create image without passing at least: leaked-secrets check, \
-                            linter and unit tests stages!'.stripIndent()
+                            'You canot create image without passing at least: leaked-secrets check, ' +
+                            'linter and unit tests stages!'
                         )
                     }
                     echo "Building image with tag: ${env.TAG_NAME}"
@@ -232,8 +232,8 @@ pipeline {
                 script {
                     if (!params.RUN_LEAKED_SECRETS_CHECK || !params.RUN_LINTER || !params.RUN_UNIT_TESTS || !params.CREATE_IMAGE) {
                         error(
-                            'You canot create image without passing at least: leaked-secrets check, \
-                            linter, unit tests and create docker image stages!'.stripIndent()
+                            'You canot create image without passing at least: leaked-secrets check' +
+                            'linter, unit tests and create docker image stages!'
                         )
                     }
                     echo "Deploying to ${env.TARGET_ENV}"
