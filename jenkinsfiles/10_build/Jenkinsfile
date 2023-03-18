@@ -208,8 +208,8 @@ pipeline {
                     --label COMMIT_ID=${env.GIT_COMMIT} \
                     --label BRANCH=${env.GIT_BRANCH} \
                     --label BUILD_NO=${env.BUILD_NUMBER} \
-                    --label LEAKED_SECRETS_CHECK={leakedSecretsCheck} \
-                    --label DEPENDENCY_SECURITY_CHECK={dependencySecurityCheck} \
+                    --label LEAKED_SECRETS_CHECK=${leakedSecretsCheck} \
+                    --label DEPENDENCY_SECURITY_CHECK=${dependencySecurityCheck} \
                     --label SONAR_QG_STATUS=${sonarQGStatus}
                     """
                     sh '''
