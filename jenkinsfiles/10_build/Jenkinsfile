@@ -104,11 +104,12 @@ pipeline {
                 )
             }
         }
-        stage('Run OWASP dependency-check') {
+        stage('Run secret check') {
             when { expression { params.RUN_OWASP_DC } }
             steps {
                 dependencyCheck(
-                    odcInstallation: ''
+                    additionalArguments: '',
+                    odcInstallation: 'owasp_dc_default'
                 )
                 dependencyCheckPublisher(
                     pattern: 'dependency-check-report.xml'
