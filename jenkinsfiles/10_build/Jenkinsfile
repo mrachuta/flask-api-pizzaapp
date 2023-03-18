@@ -104,7 +104,7 @@ pipeline {
                 )
             }
         }
-        stage('Run secret check') {
+        stage('Run OWASP DC') {
             when { expression { params.RUN_OWASP_DC } }
             steps {
                 dependencyCheck(
