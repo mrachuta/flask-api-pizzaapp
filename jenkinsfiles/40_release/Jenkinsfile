@@ -91,7 +91,7 @@ pipeline {
                                     name: 'Image tag to be used to create release',
                                     choices: imageTags,
                                     description: 'Select image that will be used to create release version.' +
-                                    '<br>Only builds from development branch are allowed'
+                                    '\nOnly builds from development branch are allowed'
                                 )
                             ]
                         )
@@ -116,6 +116,28 @@ pipeline {
                         ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
                         '''
                     ).trim()
+                    def checkMap = [
+                        "LEAKED_SECRETS_CHECK",
+                        "DEPENDENCY_SECURITY_CHECK",
+                        "SONAR_QG_STATUS"
+                    ]
+                    // Check if each image tag value equals "OK"
+                    for (v in checkMap) {
+                        echo "Verify if image meets the condition ${v}..."
+                        conditionResult = sh(
+                            returnStdout: true,
+                            script: """
+                            docker inspect --format "{{ index .Config.Labels "'"${v}"'" }}" \
+                            ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
+                            """
+                        ).trim()
+                        if (conditionResult == 'OK') {
+                            echo "--> ${v} PASSED!"
+                        } else {
+                            error "Codition ${v} is not OK"
+                        }
+                    }
+                    echo "All conditions are meet!"
                     echo "Following commit will be selected to create tag: ${env.IMAGE_COMMIT_ID}"
                     // Perform checkout including tags
                     checkout([

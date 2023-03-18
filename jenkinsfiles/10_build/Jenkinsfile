@@ -1,4 +1,6 @@
-def sonarQGStatus = ''
+def leakedSecretsCheck = 'UNKNOWN'
+def dependencySecurityCheck = 'UNKNOWN'
+def sonarQGStatus = 'UNKNOWN'
 
 pipeline {
     agent {
@@ -29,14 +31,24 @@ pipeline {
     }
     parameters {
         booleanParam(
+            name: 'RUN_LEAKED_SECRETS_CHECK',
+            defaultValue: true,
+            description: 'Do you want to run checks again leaked secrets in your branch?'
+        )
+        booleanParam(
             name: 'RUN_LINTER',
             defaultValue: true,
             description: 'Do you want to perform pylint evaluation?'
         )
         booleanParam(
-            name: 'RUN_TESTS',
+            name: 'RUN_UNIT_TESTS',
             defaultValue: true,
-            description: 'Do you want to run test phase?'
+            description: 'Do you want to run unit test stage?'
+        )
+        booleanParam(
+            name: 'RUN_DEPENDENCY_SECURITY_CHECK',
+            defaultValue: true,
+            description: 'Do you want to run security checks on python dependencies?'
         )
         booleanParam(
             name: 'RUN_SONARQUBE',
@@ -90,6 +102,25 @@ pipeline {
                 sh 'pip install -r requirements.txt'
             }
         }
+        stage('Run leaked-secrets check') {
+            when { expression { params.RUN_LEAKED_SECRETS_CHECK } }
+            steps {
+                script {
+                    def trufflehogHome = tool('trufflehog_default')
+                    withEnv(["PATH+EXTRA=${trufflehogHome}"]) {
+                        try {
+                            sh 'trufflehog git ${GIT_URL} --branch ${GIT_BRANCH} --only-verified'
+                            leakedSecretsCheck = 'OK'
+                            // No explicit information from tool
+                            echo "Leaked-secrets check passed!"
+                        } catch(Exception e) {
+                            leakedSecretsCheck = 'NOK'
+                            error "Leaked-secrets check failed!"
+                        }
+                    }
+                }
+            }
+        }
         stage('Run linter') {
             when { expression { params.RUN_LINTER } }
             steps {
@@ -99,8 +130,8 @@ pipeline {
                 )
             }
         }
-        stage('Run tests') {
-            when { expression { params.RUN_TESTS } }
+        stage('Run unit tests') {
+            when { expression { params.RUN_UNIT_TESTS } }
             steps {
                 sh '''
                 pytest --cov=pizzaapp \
@@ -115,6 +146,24 @@ pipeline {
                 )
             }
         }
+        stage('Run security checks on dependencies') {
+            when { expression { params.RUN_DEPENDENCY_SECURITY_CHECK } }
+            steps {
+                script {
+                    try {
+                        sh '''
+                        pip3 install safety
+                        safety check -r requirements.txt
+                        '''
+                        dependencySecurityCheck = 'OK'
+                    } catch(Exception e) {
+                        dependencySecurityCheck = 'NOK'
+                        unstable "Security checks on dependencies failed!"
+                    }
+                }
+            }
+        }
+        // TODO: add liccheck https://pypi.org/project/liccheck/
         stage('Run Sonarqube analysis') {
             when { expression { params.RUN_SONARQUBE } }
             steps {
@@ -128,7 +177,8 @@ pipeline {
                         timeout(time: 10, unit: 'MINUTES') {
                             def qg = waitForQualityGate()
                             if (qg.status != 'OK') {
-                                error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                                unstable "Pipeline marked unstable due to quality gate failure: ${qg.status}"
+                                sonarQGStatus = 'NOK'
                             } else {
                                 sonarQGStatus = qg.status
                             }
@@ -141,8 +191,11 @@ pipeline {
             when { expression { params.CREATE_IMAGE } }
             steps {
                 script {
-                    if (!params.RUN_LINTER || !params.RUN_TESTS || !params.RUN_SONARQUBE) {
-                        error('You canot create image without passing all previous stages!')
+                    if (!params.RUN_LEAKED_SECRETS_CHECK || !params.RUN_LINTER || !params.RUN_UNIT_TESTS) {
+                        error(
+                            'You canot create image without passing at least: leaked-secrets check, ' +
+                            'linter and unit tests stages!'
+                        )
                     }
                     echo "Building image with tag: ${env.TAG_NAME}"
                     sh '''
@@ -155,6 +208,8 @@ pipeline {
                     --label COMMIT_ID=${env.GIT_COMMIT} \
                     --label BRANCH=${env.GIT_BRANCH} \
                     --label BUILD_NO=${env.BUILD_NUMBER} \
+                    --label LEAKED_SECRETS_CHECK=${leakedSecretsCheck} \
+                    --label DEPENDENCY_SECURITY_CHECK=${dependencySecurityCheck} \
                     --label SONAR_QG_STATUS=${sonarQGStatus}
                     """
                     sh '''
@@ -175,8 +230,11 @@ pipeline {
             when { expression { params.DEPLOY_TO_ENV } }
             steps {
                 script {
-                    if (!params.RUN_LINTER || !params.RUN_TESTS || !params.RUN_SONARQUBE || !params.CREATE_IMAGE) {
-                        error('You canot perform deployment without passing all previous stages!')
+                    if (!params.RUN_LEAKED_SECRETS_CHECK || !params.RUN_LINTER || !params.RUN_UNIT_TESTS || !params.CREATE_IMAGE) {
+                        error(
+                            'You canot create image without passing at least: leaked-secrets check' +
+                            'linter, unit tests and create docker image stages!'
+                        )
                     }
                     echo "Deploying to ${env.TARGET_ENV}"
                     withCredentials([
