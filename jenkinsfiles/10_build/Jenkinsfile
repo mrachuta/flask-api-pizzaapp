@@ -34,6 +34,11 @@ pipeline {
             description: 'Do you want to perform pylint evaluation?'
         )
         booleanParam(
+            name: 'RUN_OWASP_DC',
+            defaultValue: true,
+            description: 'Do you want to run OWASP dependency-check?'
+        )
+        booleanParam(
             name: 'RUN_TESTS',
             defaultValue: true,
             description: 'Do you want to run test phase?'
@@ -96,6 +101,17 @@ pipeline {
                 sh 'find . -name \\*.py | xargs pylint -f parseable | tee pylint.log'
                 recordIssues(
                     tool: pyLint(pattern: 'pylint.log')
+                )
+            }
+        }
+        stage('Run OWASP dependency-check') {
+            when { expression { params.RUN_OWASP_DC } }
+            steps {
+                dependencyCheck(
+                    odcInstallation: ''
+                )
+                dependencyCheckPublisher(
+                    pattern: 'dependency-check-report.xml'
                 )
             }
         }
