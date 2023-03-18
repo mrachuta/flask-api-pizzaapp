@@ -10,17 +10,18 @@ flask-api-pizzaapp - Simple Flask application used demonstrate Python-based CI/C
 - [Using](#using)
 
 ## General info
-Because of lack of advanced examples of CI/CD processes based on Jenkins and Python (at least I was not able to find such examples when I started my career as DevOps Engineer), this project has been created.  
-It consists of simple Flask application (Python) and Jenkins pipelines (Declarative syntax mixed with scripted).
+Because of lack of advanced examples of CI/CD processes based on Jenkins and Python (at least I was not able to find such examples when I started my career as DevOps Engineer), this project was created.  
+It consists of simple Flask application (Python) and Jenkins pipelines (declarative syntax mixed with scripted).
 Pipelines are covering:
 - Continious Integration process 
   * build,
-  * test,
-  * static code analysis,
+  * security checks,
+  * unit tests,
+  * static code analysis
 - Continious Delivery process
   * build docker image,
-  * deployment to artifactory
-  * release-package creation (including tagging)
+  * deployment to artifactory,
+  * release-package creation (including tagging and conditions-check)
 - Continious Deployment process
   * deployment to test, uat or prod env
   
