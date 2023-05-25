@@ -116,11 +116,60 @@ pipeline {
                     }
                     echo "Image tag selected to deploy: ${env.SELECTED_TAG}"
                 }
+                // TODO: Add option to verify if commit is part of development branch
+                // if uat-env is used
             }
         }
         stage('Deploy to target environment') {
             steps {
                 script {
+                    echo "Verifying if release is conditional..."
+                    imageConditionalRelease = sh(
+                        returnStdout: true,
+                        script: '''
+                        docker inspect --format '{{ index .Config.Labels "CONDITIONAL_RELEASE" }}' \
+                        ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
+                        '''
+                    ).trim()
+                    if (imageConditionalRelease.toBoolean()) {
+                        echo "Image contains CONDITIONAL_RELEASE flag, requesting user input..."
+                        def tagMap = [
+                            "CONDITIONAL_REL_ACCEPTED_BY": null,
+                            "LEAKED_SECRETS_CHECK": null,
+                            "DEPENDENCY_SECURITY_CHECK": null,
+                            "SONAR_QG_STATUS": null
+                        ]
+                        for (i in tagMap) {
+                            conditionResult = sh(
+                                returnStdout: true,
+                                script: """
+                                docker inspect --format "{{ index .Config.Labels "'"${i.key}"'" }}" \
+                                ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
+                                """
+                            ).trim()
+                            tagMap."${i.key}" = "${conditionResult}"
+                        }
+                        operatorInput = input(
+                            message: 'CONDITIONAL_RELEASE flag on image',
+                            parameters: [
+                                booleanParam(
+                                    name: 'conditionalAcceptance',
+                                    defaultValue: false,
+                                    description: 'This image contains CONDITIONAL_RELEASE flag set to true.\n' +
+                                    'Do you want to proceed with deployment of this image?\n' +
+                                    'This image does not meet all requirements:\n\n' +
+                                    "${tagMap}"
+                                )
+                            ],
+                            submitterParameter: 'acceptedBy'
+                        )
+                        if (!operatorInput.conditionalAcceptance) {
+                            error('Release requirements are not meet, aborting release!')
+                        } else {
+                            unstable('Not all release conditions are meet; proceding with conditional release; ' +
+                            "accepted by ${operatorInput.acceptedBy}; marking build as unstable!")
+                        }
+                    }                                      
                     echo "Deploying to ${env.TARGET_ENV}"
                     withCredentials([
                         usernamePassword(

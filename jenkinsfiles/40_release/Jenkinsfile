@@ -1,3 +1,8 @@
+// Set flags to require conditional acceptance
+// to promote the image
+def releaseReqMeet = true
+def conditionalRelease = false
+
 pipeline {
     agent {
         label 'azure-docker'
@@ -116,28 +121,60 @@ pipeline {
                         ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
                         '''
                     ).trim()
-                    def checkMap = [
-                        "LEAKED_SECRETS_CHECK",
-                        "DEPENDENCY_SECURITY_CHECK",
-                        "SONAR_QG_STATUS"
+                    def tagMap = [
+                        "LEAKED_SECRETS_CHECK": null,
+                        "DEPENDENCY_SECURITY_CHECK": null,
+                        "SONAR_QG_STATUS": null,
                     ]
                     // Check if each image tag value equals "OK"
-                    for (v in checkMap) {
-                        echo "Verify if image meets the condition ${v}..."
+                    for (i in tagMap) {
+                        echo "Verify if image meets the condition ${i.key}..."
                         conditionResult = sh(
                             returnStdout: true,
                             script: """
-                            docker inspect --format "{{ index .Config.Labels "'"${v}"'" }}" \
+                            docker inspect --format "{{ index .Config.Labels "'"${i.key}"'" }}" \
                             ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
                             """
                         ).trim()
                         if (conditionResult == 'OK') {
-                            echo "--> ${v} PASSED!"
+                            echo "--> ${i.key} PASSED!"
+                            releaseReqMeet = true
                         } else {
-                            error "Codition ${v} is not OK"
+                            echo "Condition ${i.key} is not meet: ${conditionResult}"
+                            // Conditional acceptance of release required
+                            // because one of conditions is not meet
+                            releaseReqMeet = false
+                            conditionalRelease = true
                         }
+                        // Update map entry
+                        tagMap."${i.key}" = "${conditionResult}"
                     }
-                    echo "All conditions are meet!"
+                    if (conditionalRelease) {
+                        operatorInput = input(
+                            message: 'Release conditions issue',
+                            parameters: [
+                                booleanParam(
+                                    name: 'conditionalAcceptance',
+                                    defaultValue: false,
+                                    description: 'One or more of release conditions are not meet.\n\n' +
+                                    "${tagMap}\n\n" +
+                                    'Do you want to proceed with conditional release?'
+                                )
+                            ],
+                            submitterParameter: 'acceptedBy'
+                        )
+                        releaseReqMeet = operatorInput.conditionalAcceptance
+                        // Expose as env variable for better integration with shell
+                        env.ACCEPTED_BY = operatorInput.acceptedBy
+                    }
+                    if (!releaseReqMeet) {
+                        error('Release requirements are not meet, aborting release!')
+                    } else if (conditionalRelease && releaseReqMeet) {
+                        unstable('Not all release conditions are meet; proceding with conditional release; ' +
+                        "accepted by ${env.ACCEPTED_BY}; marking build as unstable!")
+                    } else {
+                        echo "All conditions are meet!"
+                    }
                     echo "Following commit will be selected to create tag: ${env.IMAGE_COMMIT_ID}"
                     // Perform checkout including tags
                     checkout([
@@ -209,10 +246,21 @@ pipeline {
                     git tag -a ${NEW_RELEASE_TAG} ${IMAGE_COMMIT_ID} -m "Version ${NEW_RELEASE_TAG}"
                     '''
                     echo 'Tagging docker image...'
-                    sh '''
-                    docker tag ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG} \
-                    ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}
-                    '''
+                    if (conditionalRelease || releaseReqMeet) {
+                        // Took from SO: https://stackoverflow.com/a/54598281
+                        echo 'Rebuilding image to add new labels because of conditional release'
+                        sh '''
+                        echo "FROM ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}" | \
+                        docker build --label CONDITIONAL_RELEASE="true" \
+                        --label CONDITIONAL_REL_ACCEPTED_BY=${ACCEPTED_BY} \
+                        -t "${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}" -
+                        '''
+                    } else {
+                        sh '''
+                        docker tag ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG} \
+                        ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}
+                        '''
+                    }
                 }
             }
         }
