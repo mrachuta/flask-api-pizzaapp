@@ -1,5 +1,5 @@
 imagePullSecrets:
- - acr-registry-secret-dev-env
+ - name: acr-registry-secret-dev-env
 
 env:
   configMap:
