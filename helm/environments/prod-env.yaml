@@ -1,3 +1,6 @@
+imagePullSecrets:
+ - name: acr-registry-secret-prod-env
+
 env:
   configMap:
     FLASK_ENV: "production"
