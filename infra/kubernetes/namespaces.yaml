@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev-env
+spec: {}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uat-env
+spec: {}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod-env
+spec: {}
