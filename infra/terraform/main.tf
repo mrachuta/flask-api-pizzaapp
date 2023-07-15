@@ -23,7 +23,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   dns_prefix          = var.aks_name
   sku_tier            = "Free"
   node_resource_group = var.aks_resources_rg_name
-  
+
   network_profile {
     network_plugin    = "kubenet"
     load_balancer_sku = var.aks_lb_sku

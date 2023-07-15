@@ -6,7 +6,7 @@ Terraform configuration to create flask-api-pizzaapp stack
 
 * Existing resource group:
 ```
-az group create --name flaskapipizaap-rg --location northcentralus
+az group create --name flaskapipizzaap-rg --location northcentralus
 ```
 * vars file created with following content
 ```
