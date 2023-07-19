@@ -1,8 +1,10 @@
-def sonarQGStatus = ''
+def leakedSecretsCheck = 'UNKNOWN'
+def dependencySecurityCheck = 'UNKNOWN'
+def sonarQGStatus = 'UNKNOWN'
 
 pipeline {
     agent {
-        label 'python'
+        label 'azure-docker'
     }
     options {
         buildDiscarder(
@@ -29,19 +31,34 @@ pipeline {
     }
     parameters {
         booleanParam(
+            name: 'RUN_LEAKED_SECRETS_CHECK',
+            defaultValue: true,
+            description: 'Do you want to run checks again leaked secrets in your branch?'
+        )
+        booleanParam(
             name: 'RUN_LINTER',
             defaultValue: true,
             description: 'Do you want to perform pylint evaluation?'
         )
         booleanParam(
-            name: 'RUN_TESTS',
+            name: 'RUN_UNIT_TESTS',
             defaultValue: true,
-            description: 'Do you want to run test phase?'
+            description: 'Do you want to run unit test stage?'
+        )
+        booleanParam(
+            name: 'RUN_DEPENDENCY_SECURITY_CHECK',
+            defaultValue: true,
+            description: 'Do you want to run security checks on python dependencies?'
         )
         booleanParam(
             name: 'RUN_SONARQUBE',
             defaultValue: true,
-            description: 'Do you want to perform Sonarqube analysis?'
+            description: 'Do you want to perform SCA using Sonarqube analysis?'
+        )
+        booleanParam(
+            name: 'RUN_CHECKOV',
+            defaultValue: true,
+            description: 'Do you want to perform SCA using checkov on Docker, k8s and helm resources?'
         )
         booleanParam(
             name: 'CREATE_IMAGE',
@@ -90,6 +107,25 @@ pipeline {
                 sh 'pip install -r requirements.txt'
             }
         }
+        stage('Run leaked-secrets check') {
+            when { expression { params.RUN_LEAKED_SECRETS_CHECK } }
+            steps {
+                script {
+                    def trufflehogHome = tool('trufflehog_default')
+                    withEnv(["PATH+EXTRA=${trufflehogHome}"]) {
+                        try {
+                            sh 'trufflehog git ${GIT_URL} --branch ${GIT_BRANCH}'
+                            leakedSecretsCheck = 'OK'
+                            // No explicit information from tool
+                            echo 'Leaked-secrets check passed!'
+                        } catch(Exception e) {
+                            leakedSecretsCheck = 'NOK'
+                            error('Leaked-secrets check failed!')
+                        }
+                    }
+                }
+            }
+        }
         stage('Run linter') {
             when { expression { params.RUN_LINTER } }
             steps {
@@ -99,12 +135,13 @@ pipeline {
                 )
             }
         }
-        stage('Run tests') {
-            when { expression { params.RUN_TESTS } }
+        stage('Run unit tests') {
+            when { expression { params.RUN_UNIT_TESTS } }
             steps {
                 sh '''
                 pytest --cov=pizzaapp \
-                --cov-report xml:coverage-reports/pycov/report.xml
+                --cov-report xml:coverage-reports/pycov/report.xml \
+                --junitxml pytest-results.xml 
                 '''
                 publishCoverage(
                     adapters: [
@@ -113,8 +150,33 @@ pipeline {
                         )
                     ]
                 )
+                junit(
+                    allowEmptyResults: true,
+                    skipMarkingBuildUnstable: true,
+                    skipPublishingChecks: true,
+                    testResults: 'pytest-results.xml'
+                )
             }
         }
+        stage('Run security checks on dependencies') {
+            when { expression { params.RUN_DEPENDENCY_SECURITY_CHECK } }
+            steps {
+                script {
+                    try {
+                        sh '''
+                        pip3 install safety
+                        safety check -r requirements.txt
+                        '''
+                        dependencySecurityCheck = 'OK'
+                    } catch(Exception e) {
+                        dependencySecurityCheck = 'NOK'
+                        unstable('Security checks on dependencies failed!')
+                    }
+                    //TODO: save output as junit-like xml https://github.com/pyupio/safety/pull/190
+                }
+            }
+        }
+        // TODO: add liccheck https://pypi.org/project/liccheck/
         stage('Run Sonarqube analysis') {
             when { expression { params.RUN_SONARQUBE } }
             steps {
@@ -128,7 +190,8 @@ pipeline {
                         timeout(time: 10, unit: 'MINUTES') {
                             def qg = waitForQualityGate()
                             if (qg.status != 'OK') {
-                                error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                                unstable("Marking build as unstable due to quality gate failure: ${qg.status})")
+                                sonarQGStatus = 'NOK'
                             } else {
                                 sonarQGStatus = qg.status
                             }
@@ -137,12 +200,38 @@ pipeline {
                 }
             }
         }
+        stage('Run checkov on other resources') {
+            when { expression { params.RUN_CHECKOV } }
+            steps {
+                sh 'pip3 install checkov'
+                sh '''
+                checkov -f ./Dockerfile --framework dockerfile --no-guide \
+                --quiet --soft-fail --hard-fail-on HIGH \
+                -o cli -o junitxml --output-file-path console,checkov-results-dockerfile.xml
+                '''
+                sh '''
+                checkov -d ./helm/flask-api-pizzaapp/ --framework helm --no-guide \
+                --quiet --soft-fail --hard-fail-on HIGH \
+                -o cli -o junitxml --output-file-path console,checkov-results-helm.xml \
+                --var-file ./helm/environments/dev-env.yaml
+                '''
+                junit(
+                    allowEmptyResults: true,
+                    skipMarkingBuildUnstable: true,
+                    skipPublishingChecks: true,
+                    testResults: 'checkov-results*.xml'
+                )
+            }
+        }
         stage('Create Docker image') {
             when { expression { params.CREATE_IMAGE } }
             steps {
                 script {
-                    if (!params.RUN_LINTER || !params.RUN_TESTS || !params.RUN_SONARQUBE) {
-                        error('You canot create image without passing all previous stages!')
+                    if (!params.RUN_LEAKED_SECRETS_CHECK || !params.RUN_LINTER || !params.RUN_UNIT_TESTS) {
+                        error(
+                            'You canot create image without passing at least: linter, ' +
+                            'unit tests and leaked-secrets stages!'
+                        )
                     }
                     echo "Building image with tag: ${env.TAG_NAME}"
                     sh '''
@@ -155,6 +244,8 @@ pipeline {
                     --label COMMIT_ID=${env.GIT_COMMIT} \
                     --label BRANCH=${env.GIT_BRANCH} \
                     --label BUILD_NO=${env.BUILD_NUMBER} \
+                    --label LEAKED_SECRETS_CHECK=${leakedSecretsCheck} \
+                    --label DEPENDENCY_SECURITY_CHECK=${dependencySecurityCheck} \
                     --label SONAR_QG_STATUS=${sonarQGStatus}
                     """
                     sh '''
@@ -171,12 +262,16 @@ pipeline {
                 }
             }
         }
+        // TODO: Implement Clair as Static Analysis for container image
         stage('Deploy to target environment') {
             when { expression { params.DEPLOY_TO_ENV } }
             steps {
                 script {
-                    if (!params.RUN_LINTER || !params.RUN_TESTS || !params.RUN_SONARQUBE || !params.CREATE_IMAGE) {
-                        error('You canot perform deployment without passing all previous stages!')
+                    if (!params.RUN_LEAKED_SECRETS_CHECK || !params.RUN_LINTER || !params.RUN_UNIT_TESTS || !params.CREATE_IMAGE) {
+                        error(
+                            'You canot create image without passing at least: linter, unit tests, ' +
+                            'leaked-secrets check and create docker image stages!'
+                        )
                     }
                     echo "Deploying to ${env.TARGET_ENV}"
                     withCredentials([
@@ -229,7 +324,7 @@ pipeline {
                     obsoleteImageList.each { imageTag ->
                         echo "Deleting ${imageTag} -> older than 30 days!"
                         sh """
-                        az acr repository delete --name ${env.AZURE_REGISTRY_ADDRESS} \
+                        az acr repository delete --yes --name ${env.AZURE_REGISTRY_ADDRESS} \
                         --image ${env.APP_NAME}:${imageTag}
                         """
                     }

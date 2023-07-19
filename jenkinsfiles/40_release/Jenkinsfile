@@ -1,6 +1,11 @@
+// Set flags to require conditional acceptance
+// to promote the image
+def releaseReqMeet = true
+def conditionalRelease = false
+
 pipeline {
     agent {
-        label 'python'
+        label 'azure-docker'
     }
     options {
         buildDiscarder(
@@ -91,7 +96,7 @@ pipeline {
                                     name: 'Image tag to be used to create release',
                                     choices: imageTags,
                                     description: 'Select image that will be used to create release version.' +
-                                    '<br>Only builds from development branch are allowed'
+                                    '\nOnly builds from development branch are allowed'
                                 )
                             ]
                         )
@@ -116,6 +121,60 @@ pipeline {
                         ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
                         '''
                     ).trim()
+                    def tagMap = [
+                        "LEAKED_SECRETS_CHECK": null,
+                        "DEPENDENCY_SECURITY_CHECK": null,
+                        "SONAR_QG_STATUS": null,
+                    ]
+                    // Check if each image tag value equals "OK"
+                    for (i in tagMap) {
+                        echo "Verify if image meets the condition ${i.key}..."
+                        conditionResult = sh(
+                            returnStdout: true,
+                            script: """
+                            docker inspect --format "{{ index .Config.Labels "'"${i.key}"'" }}" \
+                            ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
+                            """
+                        ).trim()
+                        if (conditionResult == 'OK') {
+                            echo "--> ${i.key} PASSED!"
+                            releaseReqMeet = true
+                        } else {
+                            echo "Condition ${i.key} is not meet: ${conditionResult}"
+                            // Conditional acceptance of release required
+                            // because one of conditions is not meet
+                            releaseReqMeet = false
+                            conditionalRelease = true
+                        }
+                        // Update map entry
+                        tagMap."${i.key}" = "${conditionResult}"
+                    }
+                    if (conditionalRelease) {
+                        operatorInput = input(
+                            message: 'Release conditions issue',
+                            parameters: [
+                                booleanParam(
+                                    name: 'conditionalAcceptance',
+                                    defaultValue: false,
+                                    description: 'One or more of release conditions are not meet.\n\n' +
+                                    "${tagMap}\n\n" +
+                                    'Do you want to proceed with conditional release?'
+                                )
+                            ],
+                            submitterParameter: 'acceptedBy'
+                        )
+                        releaseReqMeet = operatorInput.conditionalAcceptance
+                        // Expose as env variable for better integration with shell
+                        env.ACCEPTED_BY = operatorInput.acceptedBy
+                    }
+                    if (!releaseReqMeet) {
+                        error('Release requirements are not meet, aborting release!')
+                    } else if (conditionalRelease && releaseReqMeet) {
+                        unstable('Not all release conditions are meet; proceding with conditional release; ' +
+                        "accepted by ${env.ACCEPTED_BY}; marking build as unstable!")
+                    } else {
+                        echo "All conditions are meet!"
+                    }
                     echo "Following commit will be selected to create tag: ${env.IMAGE_COMMIT_ID}"
                     // Perform checkout including tags
                     checkout([
@@ -187,10 +246,21 @@ pipeline {
                     git tag -a ${NEW_RELEASE_TAG} ${IMAGE_COMMIT_ID} -m "Version ${NEW_RELEASE_TAG}"
                     '''
                     echo 'Tagging docker image...'
-                    sh '''
-                    docker tag ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG} \
-                    ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}
-                    '''
+                    if (conditionalRelease || releaseReqMeet) {
+                        // Took from SO: https://stackoverflow.com/a/54598281
+                        echo 'Rebuilding image to add new labels because of conditional release'
+                        sh '''
+                        echo "FROM ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}" | \
+                        docker build --label CONDITIONAL_RELEASE="true" \
+                        --label CONDITIONAL_REL_ACCEPTED_BY=${ACCEPTED_BY} \
+                        -t "${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}" -
+                        '''
+                    } else {
+                        sh '''
+                        docker tag ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG} \
+                        ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}
+                        '''
+                    }
                 }
             }
         }
@@ -212,7 +282,7 @@ pipeline {
                         } catch(err) {
                             echo "Following error occured: ${err}"
                             echo 'Reverting changes...'
-                            sh 'az acr repository delete --name ${AZURE_REGISTRY_ADDRESS} --image ${APP_NAME}:${NEW_RELEASE_TAG} || true'
+                            sh 'az acr repository delete --yes --name ${AZURE_REGISTRY_ADDRESS} --image ${APP_NAME}:${NEW_RELEASE_TAG} || true'
                             sh 'git push --delete https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_URL#https://} ${NEW_RELEASE_TAG} || true'
                         }
                     }

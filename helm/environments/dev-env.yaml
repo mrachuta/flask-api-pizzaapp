@@ -1,3 +1,6 @@
+imagePullSecrets:
+ - name: acr-registry-secret-dev-env
+
 env:
   configMap:
     FLASK_ENV: "development"
