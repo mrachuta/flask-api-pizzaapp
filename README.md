@@ -7,7 +7,9 @@ flask-api-pizzaapp - Simple Flask application used demonstrate Python-based CI/C
 - [General info](#general-info)
 - [Technologies](#technologies)
 - [Setup](#setup)
-- [Using](#using)
+  - [Development mode](#development-mode)
+  - [PROD Kubernetes](#prod-kubernetes)
+- [Usage](#usage)
 
 ## General info
 Because of lack of advanced examples of CI/CD processes based on Jenkins and Python (at least I was not able to find such examples when I started my career as DevOps Engineer), this project was created.  
@@ -37,8 +39,9 @@ Code was tested on following platforms:
 Used libraries:
 * available in requirements.txt
 
-
 ## Setup
+
+### Development mode
 
 1. Clone git repo to localhost.
 2. Install required packages.
@@ -48,14 +51,30 @@ Used libraries:
     python manage.py db migrate
     python manage.py db upgrade
     ```
-
-## Using    
-
-To start application, perform:
-```
-python manage.py runserver
-```
+4. To start application, perform:
+    ```
+    python manage.py runserver
+    ```
 After start, you can access app using following URL in your browser:
 ```
 http://127.0.0.1:5000/
+```
+### PROD Kubernetes
+
+* For infra setup see following file [README.md](./infra/terraform/README.md)  
+* For kubernetes cluster components and helm deployment see following file [README.md](./infra/kubernetes/README.md)
+
+## Usage
+
+Application:
+List of all endpoints is available at http://127.0.0.1:8080/actuator/
+
+Example:
+POST
+```
+curl -X POST -H "Content-Type: application/json" -d "{\"firstName\": \"test\", \"lastName\": \"testowy\", \"emailId\": \"testtestowy@nieistnieje.xyz\"}"  http://127.0.0.1:8080/api/v1/employees
+```
+GET
+```
+curl -X GET http://127.0.0.1:8080/api/v1/employees
 ```
