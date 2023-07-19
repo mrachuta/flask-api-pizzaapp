@@ -7,11 +7,14 @@ Basic Kubernetes cluster setup to run flask-api-pizzaapp
 * Existing k8s cluster (example here: AKS)
 
 ## Usage
-
+* Get cluster credentials
+  ```
+  az aks get-credentials --resource-group myexistingrg01 --name myaks01 --admin
+  ```
 * Create namespaces:
-```
-kubectl apply -f namespaces.yaml
-```
+  ```
+  kubectl apply -f namespaces.yaml
+  ```
 * Deploy ingress-nginx:
   ```
   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
