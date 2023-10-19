@@ -6,10 +6,13 @@ FROM nexus3.k8s.lan:50000/python:3.9.10-slim-bullseye-webdev
 ENV CONUSER=python \
     CONGROUP=python
 
-ADD --chown=${CONUSER}:${CONGROUP} manage.py requirements.txt run.sh /app/
+ADD --chown=${CONUSER}:${CONGROUP} requirements.txt run.sh /app/
 ADD --chown=${CONUSER}:${CONGROUP} pizzaapp /app/pizzaapp/
 
-RUN chmod +x run.sh manage.py &&\
-    pip install -r requirements.txt
+WORKDIR /app/
+
+RUN rm -rf pizzaapp/migrations && \
+    pip install -r requirements.txt && \
+    chmod +x run.sh && \
 
 CMD ["./run.sh"]

@@ -6,13 +6,22 @@ import os
 from flask import Flask
 from flask import render_template
 from .config import app_config
+from flask_migrate import Migrate
 
 # Import of model is necessary
 from .models import db
 from .views.pizza_view import pizza_api as pizza_blueprint
 
+try: 
+    env_name = os.environ["FLASK_ENV"]
+    print(f"Running with profile: {env_name}")
+except KeyError:
+    raise Exception(f"An error occured, set profile with FLASK_ENV environment variable\n" +
+                    f"Possible profiles:{' '.join(map(str, app_config.keys()))}")
 
-def create_app(env_name):
+migrate = Migrate()
+
+def create_app():
 
     """
     Create app
@@ -22,6 +31,7 @@ def create_app(env_name):
 
     app.config.from_object(app_config[env_name])
     db.init_app(app)
+    migrate.init_app(app, db)
     app.register_blueprint(pizza_blueprint, url_prefix="/api/v1/pizza")
 
     @app.route("/", methods=["GET"])
