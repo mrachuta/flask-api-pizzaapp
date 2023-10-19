@@ -12,13 +12,6 @@ from flask_migrate import Migrate
 from .models import db
 from .views.pizza_view import pizza_api as pizza_blueprint
 
-try: 
-    env_name = os.environ["FLASK_ENV"]
-    print(f"Running with profile: {env_name}")
-except KeyError:
-    raise Exception(f"An error occured, set profile with FLASK_ENV environment variable\n" +
-                    f"Possible profiles:{' '.join(map(str, app_config.keys()))}")
-
 migrate = Migrate()
 
 def create_app():
@@ -26,6 +19,13 @@ def create_app():
     """
     Create app
     """
+
+    try: 
+        env_name = os.environ["FLASK_ENV"]
+        print(f"Running with profile: {env_name}")
+    except KeyError:
+        raise Exception(f"An error occured, set profile with FLASK_ENV environment variable\n" +
+                        f"Possible profiles:{' '.join(map(str, app_config.keys()))}")
 
     app = Flask(__name__, template_folder="templates")
 
