@@ -11,8 +11,7 @@ ADD --chown=${CONUSER}:${CONGROUP} pizzaapp /app/pizzaapp/
 
 WORKDIR /app/
 
-RUN rm -rf pizzaapp/migrations && \
-    pip install -r requirements.txt && \
-    chmod +x run.sh && \
+RUN pip install -r requirements.txt && \
+    chmod +x run.sh
 
 CMD ["./run.sh"]
