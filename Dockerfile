@@ -3,11 +3,16 @@ FROM nexus3.k8s.lan:50000/python:3.9.10-slim-bullseye-webdev
 # Base image is running as user python (uid:1001)
 # and group python (gid:1001)
 
-ENV CONUSER=python \
-    CONGROUP=python
+HEALTHCHECK CMD curl --fail http://localhost:5000/
 
-ADD --chown=${CONUSER}:${CONGROUP} requirements.txt run.sh /app/
-ADD --chown=${CONUSER}:${CONGROUP} pizzaapp /app/pizzaapp/
+USER root
+
+COPY requirements.txt run.sh /app/
+COPY pizzaapp /app/pizzaapp/
+
+RUN chown -R python:python /app
+
+USER python
 
 WORKDIR /app/
 
