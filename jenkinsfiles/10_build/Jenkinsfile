@@ -204,17 +204,8 @@ pipeline {
             when { expression { params.RUN_CHECKOV } }
             steps {
                 sh 'pip3 install checkov'
-                sh '''
-                checkov -f ./Dockerfile --framework dockerfile --no-guide \
-                --quiet --soft-fail --hard-fail-on HIGH \
-                -o cli -o junitxml --output-file-path console,checkov-results-dockerfile.xml
-                '''
-                sh '''
-                checkov -d ./helm/flask-api-pizzaapp/ --framework helm --no-guide \
-                --quiet --soft-fail --hard-fail-on HIGH \
-                -o cli -o junitxml --output-file-path console,checkov-results-helm.xml \
-                --var-file ./helm/environments/dev-env.yaml
-                '''
+                sh 'checkov --config-file ./checkov-docker.yml'
+                sh 'checkov --config-file ./checkov-helm.yml'
                 junit(
                     allowEmptyResults: true,
                     skipMarkingBuildUnstable: true,
