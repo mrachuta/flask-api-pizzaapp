@@ -4,7 +4,7 @@ imagePullSecrets:
 env:
   configMap:
     FLASK_ENV: "development"
-    FLASK_DB_TYPE: "postgres"
+    FLASK_DB_TYPE: "postgresql"
     FLASK_DB_HOST: "kandula.db.elephantsql.com"
     FLASK_DB_PORT: "5432"
     FLASK_DB_NAME: "amquuyng"

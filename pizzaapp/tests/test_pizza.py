@@ -19,7 +19,7 @@ class PizzaTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.env_patcher = mock.patch.dict(
-            os.environ, {"ENV_DETAILED_NAME": "local", "BANNER_COLOR": "green"}
+            os.environ, {"ENV_DETAILED_NAME": "local", "BANNER_COLOR": "green", "FLASK_ENV": "local"}
         )
         cls.env_patcher.start()
 
@@ -38,7 +38,7 @@ class PizzaTest(unittest.TestCase):
         """
 
         super().setUp()
-        self.app = create_app("local")
+        self.app = create_app()
         self.app.config["TESTING"] = True
         self.client = self.app.test_client()
 

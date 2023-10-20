@@ -47,13 +47,13 @@ Used libraries:
 2. Install required packages.
 3. Use following commands:
     ```
-    python manage.py db init
-    python manage.py db migrate
-    python manage.py db upgrade
+    flask --app pizzaapp.app db init
+    flask --app pizzaapp.app db migrate
+    flask --app pizzaapp.app db upgrade
     ```
 4. To start application, perform:
     ```
-    python manage.py runserver
+    flask --app pizzaapp.app run
     ```
 After start, you can access app using following URL in your browser:
 ```
@@ -67,14 +67,14 @@ http://127.0.0.1:5000/
 ## Usage
 
 Application:
-List of all endpoints is available at http://127.0.0.1:8080/actuator/
+List of all endpoints is available at http://127.0.0.1:500/
 
 Example:
 POST
 ```
-curl -X POST -H "Content-Type: application/json" -d "{\"firstName\": \"test\", \"lastName\": \"testowy\", \"emailId\": \"testtestowy@nieistnieje.xyz\"}"  http://127.0.0.1:8080/api/v1/employees
+curl -X POST -H "Content-Type: application/json" -d "{\"name\": \"testpizza\", \"price\": \"29.99\"}"  http://127.0.0.1:5000/api/v1/pizza/
 ```
 GET
 ```
-curl -X GET http://127.0.0.1:8080/api/v1/employees
+curl -X GET http://127.0.0.1:5000/api/v1/pizza/
 ```
