@@ -20,7 +20,7 @@ secrets-scan-file-type: []
 skip-check:
 - CKV_K8S_21
 skip-path:
-- ./helm/flask-api-pizzaapp/templates/tests/*
+- templates/tests/test-connection.yaml
 soft-fail: true
 summary-position: top
 var-file:
