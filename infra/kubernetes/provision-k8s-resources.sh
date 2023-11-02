@@ -10,8 +10,8 @@ kubectl apply -f ./namespaces.yaml
 
 echo "Applying cert manager version ${CERT_MANAGER_VER}"
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VER}/cert-manager.yaml
-echo 'Finished, sleep for 60 seconds'
-sleep 60
+echo 'Finished, sleep for 30 seconds'
+sleep 30
 
 echo 'Applying cert-manager clusterissuer'
 kubectl apply -f ./letsencrypt-staging-clusterissuer.yaml
@@ -23,8 +23,8 @@ kubectl apply -f ./acr-registry-secret-prod-env.yaml
 
 echo "Applying ingress-nginx version ${NGINX_INGRESS_VER}"
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-${NGINX_INGRESS_VER}/deploy/static/provider/cloud/deploy.yaml
-echo 'Sleep for 60 seconds'
-sleep 60
+echo 'Sleep for 30 seconds'
+sleep 30
 
 echo 'Getting loadBalancer IP address...'
 until kubectl get svc ingress-nginx-controller -n ingress-nginx \

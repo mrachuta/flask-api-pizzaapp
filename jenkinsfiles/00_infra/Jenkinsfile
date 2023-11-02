@@ -37,11 +37,6 @@ pipeline {
             description: 'Do you want to deploy Kubernetes resources?'
         )
         booleanParam(
-            name: 'REFRESH_DNS',
-            defaultValue: false,
-            description: 'Do you want to refresh DNS records?'
-        )
-        booleanParam(
             name: 'RUN_CHECKS',
             defaultValue: true,
             description: 'Do you want to run tests and checks?'
@@ -79,6 +74,7 @@ pipeline {
                         env.AZURE_INGRESS_DOMAIN = azureVariables[6]
                         env.AZURE_RESOURCES_RG_NAME = azureVariables[7]
                         env.AZURE_STORAGE_ACCOUNT_NAME = azureVariables[8]
+                        env.OVH_ZONE = azureVariables[9]
                     }
                     echo 'Exposing rest of variables...'
                     env.AZURE_REGISTRY_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
@@ -160,10 +156,29 @@ pipeline {
                         sh 'chmod +x ./provision-k8s-resources.sh'
                         sh './provision-k8s-resources.sh | tee -a script.log'
                         loadBalancerIp = readFile(file: 'script.log') =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
-                        echo "loadBalancerIp: ${loadBalancerIp[0][0]}"
+                        env.LOAD_BALANCER_IP = "${loadBalancerIp[0][0]}"
+                    }
+                    dir('infra/misc') {
+                        withCredentials(
+                            [file(credentialsId: 'ovh-api-credentials', variable: 'API_CREDS')]
+                        ) {
+                            sh '''
+                            cp $API_CREDS ovh.conf
+                            pip install -r requirements.txt
+                            python3 ovh_script.py -z $OVH_ZONE -s aks -r A -t $LOAD_BALANCER_IP
+                            python3 ovh_script.py -z $OVH_ZONE -s *.aks -r A -t $LOAD_BALANCER_IP
+                            rm ovh.conf
+                            rm $API_CREDS
+                            '''
+                        }
                     }
                 }
             }
+        }
+    }
+    post {
+        cleanup {
+            cleanWs()
         }
     }
 }

@@ -75,22 +75,25 @@ pipeline {
                         env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
                         env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
                         env.AZURE_INGRESS_DOMAIN = azureVariables[6]
+                        env.AZURE_RESOURCES_RG_NAME = azureVariables[7]
+                        env.AZURE_STORAGE_ACCOUNT_NAME = azureVariables[8]
+                        env.OVH_ZONE = azureVariables[9]
                         env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
                     }
                     echo 'Exposing other variables...'
                     env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
-                }
-            }
-        }
-        stage('Download Docker image') {
-            steps {
-                script {
                     sh '''
                     az login --service-principal \
                     --username $AZURE_SP_USR \
                     --password $AZURE_SP_PSW \
                     --tenant $AZURE_TENANT
                     '''
+                }
+            }
+        }
+        stage('Download Docker image') {
+            steps {
+                script {
                     def imageTags = sh(
                         returnStdout: true,
                         script: '''
