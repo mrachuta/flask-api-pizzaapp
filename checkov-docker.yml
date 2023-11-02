@@ -3,7 +3,7 @@ download-external-modules: false
 evaluate-variables: true
 external-modules-download-path: .external_modules
 file:
-- ./Dockerfile
+- - ./Dockerfile
 framework:
 - dockerfile
 hard-fail-on:
