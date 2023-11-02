@@ -117,23 +117,28 @@ pipeline {
                     // Double slash to escape dot
                     env.AZURE_REGISTRY_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
                     dir('infra/terraform') {
-                        sh '''
-                        terraform init
-                        terraform $TF_ACTION \
-                        -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
-                        -var provision_acr=$DEPLOY_ACR \
-                        -var provision_aks=$DEPLOY_ACR \
-                        -var acr_name=$AZURE_REGISTRY_NAME  \
-                        -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
-                        -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
-                        '''
+                        sh 'terraform init -input=false'
+                        if (env.TF_ACTION == 'apply') {
+                            sh '''
+                            terraform plan -out=tfplan -input=false \
+                            -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
+                            -var provision_acr=$DEPLOY_ACR \
+                            -var provision_aks=$DEPLOY_ACR \
+                            -var acr_name=$AZURE_REGISTRY_NAME  \
+                            -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
+                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
+                            terraform apply -input=false -auto-approve tfplan
+                            '''
+                        } else {
+                            sh 'terraform $TF_ACTION -input=false'
+                        }
                     }
                 }
             }
         }
         stage('Deploy k8s resources') {
             when {
-                expression { env.DEPLOY_K8S_RESOURCES == true }
+                expression { env.DEPLOY_K8S_RESOURCES == 'true' }
             }
             steps {
                 script {
@@ -144,18 +149,18 @@ pipeline {
                     dir('infra/kubernetes') {
                         ['dev-env', 'uat-env', 'prod-env'].each {
                             sh """
-                            kubectl create secret docker-registry acr-registry-secret-{it} \
-                            --namespace {it} \
+                            kubectl create secret docker-registry acr-registry-secret-${it} \
+                            --namespace ${it} \
                             --docker-server=$AZURE_REGISTRY_ADDRESS \
                             --docker-username=$AZURE_REGISTRY_NAME  \
                             --docker-password=$AZURE_SP_PSW \
                             --dry-run=client -o yaml > acr-registry-secret-${it}.yaml
                             """
                         }
-                        sh 'chmod +x provision-k8s-resources.sh'
+                        sh 'chmod +x ./provision-k8s-resources.sh'
                         sh './provision-k8s-resources.sh | tee -a script.log'
                         loadBalancerIp = readFile(file: 'script.log') =~ /("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")/
-                        echo "loadBalancerIp: ${loadBalancerIp}"
+                        echo "loadBalancerIp: ${loadBalancerIp[0]}"
                     }
                 }
             }
