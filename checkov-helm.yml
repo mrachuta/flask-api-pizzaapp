@@ -9,7 +9,6 @@ framework:
 hard-fail-on:
 - HIGH
 mask: []
-no-guide: true
 output:
 - cli
 - junitxml
