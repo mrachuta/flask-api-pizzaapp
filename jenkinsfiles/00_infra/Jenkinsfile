@@ -80,14 +80,20 @@ pipeline {
                         env.AZURE_RESOURCES_RG_NAME = azureVariables[7]
                         env.AZURE_STORAGE_ACCOUNT_NAME = azureVariables[8]
                     }
+                    sh '''
+                    az login --service-principal \
+                    --username $AZURE_SP_USR \
+                    --password $AZURE_SP_PSW \
+                    --tenant $AZURE_TENANT
+                    '''
                 }
             }
         }
         stage('Run terraform') {
             when {
                 anyOf {
-                    expression { env.DEPLOY_ACR == true }
-                    expression { env.DEPLOY_AKS == true }
+                    expression { env.DEPLOY_ACR == 'true' }
+                    expression { env.DEPLOY_AKS == 'true' }
                 }
             }
             steps {
@@ -132,10 +138,6 @@ pipeline {
             steps {
                 script {
                     sh '''
-                    az login --service-principal \
-                    --username $AZURE_SP_USR \
-                    --password $AZURE_SP_PSW \
-                    --tenant $AZURE_TENANT
                     az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP_NAME \
                     --name $AZURE_KUBE_CLUSTER_NAME --admin
                     '''
