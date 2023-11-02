@@ -80,6 +80,8 @@ pipeline {
                         env.AZURE_RESOURCES_RG_NAME = azureVariables[7]
                         env.AZURE_STORAGE_ACCOUNT_NAME = azureVariables[8]
                     }
+                    echo 'Exposing rest of variables...'
+                    env.AZURE_REGISTRY_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
                     sh '''
                     az login --service-principal \
                     --username $AZURE_SP_USR \
@@ -114,8 +116,6 @@ pipeline {
                         ''',
                         returnStdout: true
                     ).trim()
-                    // Double slash to escape dot
-                    env.AZURE_REGISTRY_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
                     dir('infra/terraform') {
                         sh 'terraform init -input=false'
                         if (env.TF_ACTION == 'apply') {
@@ -159,8 +159,8 @@ pipeline {
                         }
                         sh 'chmod +x ./provision-k8s-resources.sh'
                         sh './provision-k8s-resources.sh | tee -a script.log'
-                        loadBalancerIp = readFile(file: 'script.log') =~ /("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")/
-                        echo "loadBalancerIp: ${loadBalancerIp[0]}"
+                        loadBalancerIp = readFile(file: 'script.log') =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/
+                        echo "loadBalancerIp: ${loadBalancerIp[0][0]}"
                     }
                 }
             }
