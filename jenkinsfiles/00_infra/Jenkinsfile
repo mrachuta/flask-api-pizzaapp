@@ -143,15 +143,19 @@ pipeline {
                     --name $AZURE_KUBE_CLUSTER_NAME --admin
                     '''
                     dir('infra/kubernetes') {
-                        ['dev-env', 'uat-env', 'prod-env'].each {
-                            sh """
-                            kubectl create secret docker-registry acr-registry-secret-${it} \
-                            --namespace ${it} \
-                            --docker-server=$AZURE_REGISTRY_ADDRESS \
-                            --docker-username=$AZURE_REGISTRY_NAME  \
-                            --docker-password=$AZURE_SP_PSW \
-                            --dry-run=client -o yaml > acr-registry-secret-${it}.yaml
-                            """
+                        withCredentials(
+                            [usernamePassword(credentialsId: 'azure-acr-registry-admin', variable: 'ACR_CREDS')]
+                        ) {
+                            ['dev-env', 'uat-env', 'prod-env'].each {
+                                sh """
+                                kubectl create secret docker-registry acr-registry-secret-${it} \
+                                --namespace ${it} \
+                                --docker-server=$AZURE_REGISTRY_ADDRESS \
+                                --docker-username=$ACR_CREDS_USR \
+                                --docker-password=$ACR_CREDS_PSW \
+                                --dry-run=client -o yaml > acr-registry-secret-${it}.yaml
+                                """
+                            }
                         }
                         sh 'chmod +x ./provision-k8s-resources.sh'
                         sh './provision-k8s-resources.sh | tee -a script.log'
