@@ -1,3 +1,5 @@
+@Library('jenkins-shared-libs@development') _
+
 pipeline {
     agent {
         // Use new pod template
@@ -22,6 +24,16 @@ pipeline {
     }
     parameters {
         booleanParam(
+            name: 'RUN_TESTS',
+            defaultValue: true,
+            description: 'Do you want to run tests?'
+        )
+        booleanParam(
+            name: 'RUN_CHECKOV',
+            defaultValue: true,
+            description: 'Do you want to run checkov?'
+        )
+        booleanParam(
             name: 'DEPLOY_ACR',
             defaultValue: false,
             description: 'Do you want to deploy Azure Container Registry?'
@@ -36,11 +48,6 @@ pipeline {
             defaultValue: false,
             description: 'Do you want to deploy Kubernetes resources?'
         )
-        booleanParam(
-            name: 'RUN_CHECKS',
-            defaultValue: true,
-            description: 'Do you want to run tests and checks?'
-        )
         choice(
             choices: ['plan', 'apply', 'destroy -plan', 'destroy'],
             description: 'Select terraform action',
@@ -54,28 +61,7 @@ pipeline {
                     dbCredentialsId = 'flask-api-pizzaapp-database-dev-env'
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
-                    echo 'Exposing Azure-specific env variables...'
-                    configFileProvider([
-                        configFile(
-                            fileId: 'azure-config',
-                            variable: 'AZURE_CONFIGURATION'
-                        )
-                    ]) {
-                        // Split by each line, then split by '=' and remove quotes
-                        azureVariables = readFile("${env.AZURE_CONFIGURATION}").split('\n').collect { azVar ->
-                            azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
-                        }
-                        env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
-                        env.AZURE_TENANT = azureVariables[1]
-                        env.AZURE_TENANT_ID = azureVariables[2]
-                        env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
-                        env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
-                        env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
-                        env.AZURE_INGRESS_DOMAIN = azureVariables[6]
-                        env.AZURE_RESOURCES_RG_NAME = azureVariables[7]
-                        env.AZURE_STORAGE_ACCOUNT_NAME = azureVariables[8]
-                        env.OVH_ZONE = azureVariables[9]
-                    }
+                    exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing rest of variables...'
                     env.AZURE_REGISTRY_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
                     sh '''
@@ -85,6 +71,41 @@ pipeline {
                     --tenant $AZURE_TENANT
                     '''
                 }
+            }
+        }
+        stage('Run format-check') {
+            steps {
+                dir('infra/terraform') {
+                    echo 'Checking formatting...'
+                    sh 'terraform fmt -check -recursive'
+                }
+            }
+        }
+        stage('Run tests') {
+            when { expression { env.RUN_TESTS } }
+            steps {
+                dir('infra/terraform') {
+                    echo 'Checking formatting...'
+                    sh 'terraform fmt -check -recursive'
+                    echo 'Running tflint'
+                    echo 'TODO'
+                    echo 'Running terratest'
+                    echo 'TODO'
+                }
+                
+            }
+        }
+        stage('Run checkov over terraform code') {
+            when { expression { env.RUN_CHECKOV } }
+            steps {
+                sh 'pip3 install checkov'
+                sh 'checkov --config-file ./checkov-terraform.yml'
+                junit(
+                    allowEmptyResults: true,
+                    skipMarkingBuildUnstable: true,
+                    skipPublishingChecks: true,
+                    testResults: 'checkov-results*.xml'
+                )
             }
         }
         stage('Run terraform') {
@@ -114,6 +135,7 @@ pipeline {
                     ).trim()
                     dir('infra/terraform') {
                         sh 'terraform init -input=false'
+                        sh 'terraform validate'
                         if (env.TF_ACTION == 'apply') {
                             sh '''
                             terraform plan -out=tfplan -input=false \
@@ -143,16 +165,20 @@ pipeline {
                     --name $AZURE_KUBE_CLUSTER_NAME --admin
                     '''
                     dir('infra/kubernetes') {
-                        withCredentials(
-                            [usernamePassword(credentialsId: 'azure-acr-registry-admin', variable: 'ACR_CREDS')]
-                        ) {
+                        withCredentials([
+                            usernamePassword(
+                                credentialsId: 'azure-acr-registry-admin',
+                                usernameVariable: 'ACR_USER',
+                                passwordVariable: 'ACR_PASS'
+                            )
+                        ]) {
                             ['dev-env', 'uat-env', 'prod-env'].each {
                                 sh """
                                 kubectl create secret docker-registry acr-registry-secret-${it} \
                                 --namespace ${it} \
                                 --docker-server=$AZURE_REGISTRY_ADDRESS \
-                                --docker-username=$ACR_CREDS_USR \
-                                --docker-password=$ACR_CREDS_PSW \
+                                --docker-username=$ACR_USER \
+                                --docker-password=$ACR_PASS \
                                 --dry-run=client -o yaml > acr-registry-secret-${it}.yaml
                                 """
                             }
