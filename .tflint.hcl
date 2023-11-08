@@ -1,7 +1,6 @@
 config {
   format    = "checkstyle"
   module    = true
-  recursive = true
 }
 
 plugin "terraform" {
