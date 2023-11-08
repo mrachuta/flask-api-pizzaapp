@@ -1,5 +1,5 @@
 config {
-  format    = "checkstyle"
+  format    = "junit"
   module    = true
 }
 

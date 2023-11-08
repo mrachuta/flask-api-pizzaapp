@@ -92,11 +92,15 @@ pipeline {
                             sh 'tflint --init --config=${WORKSPACE}/.tflint.hcl'
                             sh '''
                             tflint --recursive \
-                            --config=${WORKSPACE}/.tflint.hcl |\
-                            tee -a tflint.log
+                            --config=${WORKSPACE}/.tflint.hcl \
+                            --format=junit |\
+                            tee -a tflint-results.xml
                             '''
-                            recordIssues(
-                                tool: checkStyle(pattern: 'tflint.log')
+                            junit(
+                                allowEmptyResults: true,
+                                skipMarkingBuildUnstable: false,
+                                skipPublishingChecks: true,
+                                testResults: 'tflint-results.xml'
                             )
                         }
                         echo 'Running terratest'
@@ -112,7 +116,7 @@ pipeline {
                 sh 'checkov --config-file ./checkov-terraform.yml'
                 junit(
                     allowEmptyResults: true,
-                    skipMarkingBuildUnstable: true,
+                    skipMarkingBuildUnstable: false,
                     skipPublishingChecks: true,
                     testResults: 'checkov-results*.xml'
                 )

@@ -186,7 +186,7 @@ pipeline {
                 sh 'checkov --config-file ./checkov-helm.yml'
                 junit(
                     allowEmptyResults: true,
-                    skipMarkingBuildUnstable: true,
+                    skipMarkingBuildUnstable: false,
                     skipPublishingChecks: true,
                     testResults: 'checkov-results*.xml'
                 )
