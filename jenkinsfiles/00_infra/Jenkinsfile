@@ -90,7 +90,10 @@ pipeline {
                         withEnv(["PATH+EXTRA=${tflintHome}"]) {
                             echo 'Running tflint'
                             sh 'tflint --init --config=${WORKSPACE}/.tflint.hcl'
-                            sh 'tflint --recursive --config=${WORKSPACE}/.tflint.hcl'
+                            sh 'tflint --config=${WORKSPACE}/.tflint.hcl | tee -a tflint.log'
+                            recordIssues(
+                                tool: checkStyle(pattern: 'tflint.log')
+                            )
                         }
                         echo 'Running terratest'
                         echo 'TODO'
