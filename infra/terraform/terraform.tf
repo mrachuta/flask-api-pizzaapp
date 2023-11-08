@@ -13,6 +13,7 @@ terraform {
     container_name       = "terraform-remote-state"
     key                  = "terraform.tfstate"
   }
+  required_version = ">= 1.5.7"
 }
 
 # Configure the Microsoft Azure Provider

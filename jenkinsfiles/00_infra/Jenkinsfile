@@ -89,7 +89,7 @@ pipeline {
                         def tflintHome = tool('tflint_default')
                         withEnv(["PATH+EXTRA=${tflintHome}"]) {
                             echo 'Running tflint'
-                            sh 'tflint --init'
+                            sh 'tflint --init --config=${WORKSPACE}/.tflint.hcl'
                             sh 'tflint --recursive --config=${WORKSPACE}/.tflint.hcl'
                         }
                         echo 'Running terratest'
