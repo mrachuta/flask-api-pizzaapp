@@ -84,13 +84,18 @@ pipeline {
         stage('Run tests') {
             when { expression { env.RUN_TESTS } }
             steps {
-                dir('infra/terraform') {
-                    echo 'Running tflint'
-                    echo 'TODO'
-                    echo 'Running terratest'
-                    echo 'TODO'
+                script {
+                    dir('infra/terraform') {
+                        def tflintHome = tool('tflint_default')
+                        withEnv(["PATH+EXTRA=${tflintHome}"]) {
+                            echo 'Running tflint'
+                            sh 'tflint --init'
+                            sh 'tflint --recursive --config=${WORKSPACE}/.tflint.hcl'
+                        }
+                        echo 'Running terratest'
+                        echo 'TODO'
+                    }
                 }
-                
             }
         }
         stage('Run checkov over terraform code') {
