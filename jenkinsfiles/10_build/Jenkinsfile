@@ -1,3 +1,5 @@
+@Library('jenkins-shared-libs@development') _
+
 def leakedSecretsCheck = 'UNKNOWN'
 def dependencySecurityCheck = 'UNKNOWN'
 def sonarQGStatus = 'UNKNOWN'
@@ -78,28 +80,7 @@ pipeline {
                     dbCredentialsId = 'flask-api-pizzaapp-database-dev-env'
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
-                    echo 'Exposing Azure-specific env variables...'
-                    configFileProvider([
-                        configFile(
-                            fileId: 'azure-config',
-                            variable: 'AZURE_CONFIGURATION'
-                        )
-                    ]) {
-                        // Split by each line, then split by '=' and remove quotes
-                        azureVariables = readFile("${env.AZURE_CONFIGURATION}").split('\n').collect { azVar ->
-                            azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
-                        }
-                        env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
-                        env.AZURE_TENANT = azureVariables[1]
-                        env.AZURE_TENANT_ID = azureVariables[2]
-                        env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
-                        env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
-                        env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
-                        env.AZURE_INGRESS_DOMAIN = azureVariables[6]
-                        env.AZURE_RESOURCES_RG_NAME = azureVariables[7]
-                        env.AZURE_STORAGE_ACCOUNT_NAME = azureVariables[8]
-                        env.OVH_ZONE = azureVariables[9]
-                    }
+                    exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing rest of variables...'
                     env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
                     sh '''
@@ -123,9 +104,8 @@ pipeline {
                     def trufflehogHome = tool('trufflehog_default')
                     withEnv(["PATH+EXTRA=${trufflehogHome}"]) {
                         try {
-                            sh 'trufflehog git ${GIT_URL} --branch ${GIT_BRANCH}'
+                            sh 'trufflehog git ${GIT_URL} --branch ${GIT_BRANCH} --fail'
                             leakedSecretsCheck = 'OK'
-                            // No explicit information from tool
                             echo 'Leaked-secrets check passed!'
                         } catch(Exception e) {
                             leakedSecretsCheck = 'NOK'
@@ -190,26 +170,15 @@ pipeline {
             when { expression { params.RUN_SONARQUBE } }
             steps {
                 script {
-                    def scannerHome = tool('sonarqube_scanner_default')
-                    def nodeHome = tool('nodejs_default')
-                    withEnv(["PATH+EXTRA=${scannerHome}/bin:${nodeHome}/bin"]) {
-                        withSonarQubeEnv('sonarqube_default') {
-                            sh('sonar-scanner')
-                        }
-                        timeout(time: 10, unit: 'MINUTES') {
-                            def qg = waitForQualityGate()
-                            if (qg.status != 'OK') {
-                                unstable("Marking build as unstable due to quality gate failure: ${qg.status})")
-                                sonarQGStatus = 'NOK'
-                            } else {
-                                sonarQGStatus = qg.status
-                            }
-                        }
-                    }
+                    runSonarQubeAnalysis.scanner(
+                        sonarScannerToolId: 'sonarqube_scanner_default',
+                        nodeJsToolId: 'nodejs_default',
+                        sonarQubeServerId: 'sonarqube_default'
+                    )
                 }
             }
         }
-        stage('Run checkov on other resources') {
+        stage('Run checkov over docker and helm') {
             when { expression { params.RUN_CHECKOV } }
             steps {
                 sh 'pip3 install checkov'

@@ -1,3 +1,5 @@
+@Library('jenkins-shared-libs@development') _
+
 // Set flags to require conditional acceptance
 // to promote the image
 def releaseReqMeet = true
@@ -47,28 +49,7 @@ pipeline {
                     if (!(env.GIT_BRANCH == 'development')) {
                         error('You can use this pipeline only from development branch!')
                     }
-                    echo 'Exposing Azure-specific env variables...'
-                    configFileProvider([
-                        configFile(
-                            fileId: 'azure-config',
-                            variable: 'AZURE_CONFIGURATION'
-                        )
-                    ]) {
-                        // Split by each line, then split by '=' and remove quotes
-                        azureVariables = readFile("${env.AZURE_CONFIGURATION}").split('\n').collect { azVar ->
-                            azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
-                        }
-                        env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
-                        env.AZURE_TENANT = azureVariables[1]
-                        env.AZURE_TENANT_ID = azureVariables[2]
-                        env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
-                        env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
-                        env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
-                        env.AZURE_INGRESS_DOMAIN = azureVariables[6]
-                        env.AZURE_RESOURCES_RG_NAME = azureVariables[7]
-                        env.AZURE_STORAGE_ACCOUNT_NAME = azureVariables[8]
-                        env.OVH_ZONE = azureVariables[9]
-                    }
+                    exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing other variables...'
                     env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
                     sh '''
