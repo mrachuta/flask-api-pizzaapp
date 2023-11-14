@@ -230,7 +230,7 @@ pipeline {
                     git tag -a ${NEW_RELEASE_TAG} ${IMAGE_COMMIT_ID} -m "Version ${NEW_RELEASE_TAG}"
                     '''
                     echo 'Tagging docker image...'
-                    if (conditionalRelease || releaseReqMeet) {
+                    if (conditionalRelease && releaseReqMeet) {
                         // Took from SO: https://stackoverflow.com/a/54598281
                         echo 'Rebuilding image to add new labels because of conditional release'
                         sh '''
