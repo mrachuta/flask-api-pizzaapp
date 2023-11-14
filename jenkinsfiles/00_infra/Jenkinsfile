@@ -36,12 +36,12 @@ pipeline {
         booleanParam(
             name: 'DEPLOY_ACR',
             defaultValue: false,
-            description: 'Do you want to deploy Azure Container Registry?'
+            description: 'Do you want to deploy / keep Azure Container Registry?'
         )
         booleanParam(
             name: 'DEPLOY_AKS',
             defaultValue: false,
-            description: 'Do you want to deploy Azure Kubernetes Service?'
+            description: 'Do you want to deploy / keep Azure Kubernetes Service?'
         )
         booleanParam(
             name: 'DEPLOY_K8S_RESOURCES',
@@ -49,7 +49,7 @@ pipeline {
             description: 'Do you want to deploy Kubernetes resources?'
         )
         choice(
-            choices: ['plan', 'apply', 'destroy -plan', 'destroy'],
+            choices: ['plan', 'apply', 'plan -destroy', 'destroy'],
             description: 'Select terraform action',
             name: 'TF_ACTION'
         )
@@ -82,7 +82,7 @@ pipeline {
             }
         }
         stage('Run tests') {
-            when { expression { env.RUN_TESTS } }
+            when { expression { env.RUN_TESTS == 'true' } }
             steps {
                 script {
                     dir('infra/terraform') {
@@ -110,7 +110,7 @@ pipeline {
             }
         }
         stage('Run checkov over terraform code') {
-            when { expression { env.RUN_CHECKOV } }
+            when { expression { env.RUN_CHECKOV == 'true' } }
             steps {
                 sh 'pip3 install checkov'
                 sh 'checkov --config-file ./checkov-terraform.yml'
@@ -152,14 +152,25 @@ pipeline {
                         sh 'terraform validate'
                         if (env.TF_ACTION == 'apply') {
                             sh '''
-                            terraform plan -out=tfplan -input=false \
+                            terraform plan -destroy -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
                             -var provision_aks=$DEPLOY_ACR \
                             -var acr_name=$AZURE_REGISTRY_NAME  \
                             -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
                             -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
-                            terraform apply -input=false -auto-approve tfplan
+                            terraform $TF_ACTION -input=false -auto-approve tfplan
+                            '''
+                        } else if (env.TF_ACTION == 'destroy') {
+                            sh '''
+                            terraform plan -destroy -out=tfplan -input=false \
+                            -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
+                            -var provision_acr=$DEPLOY_ACR \
+                            -var provision_aks=$DEPLOY_ACR \
+                            -var acr_name=$AZURE_REGISTRY_NAME  \
+                            -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
+                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
+                            terraform $TF_ACTION -input=false -auto-approve tfplan
                             '''
                         } else {
                             sh 'terraform $TF_ACTION -input=false'
