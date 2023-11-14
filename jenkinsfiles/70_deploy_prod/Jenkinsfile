@@ -1,3 +1,5 @@
+@Library('jenkins-shared-libs@development') _
+
 def allowedUsers = [
     'mrachuta',
     'tdeveloper'
@@ -49,48 +51,29 @@ pipeline {
                         error("You are not allowed to deploy to ${env.TARGET_ENV}!")
                     }
                     /* 
-                    TODO: 
-                    1. Introduce release branches
-                    2. Add option to verify if image commit is part of current branch
-                    'master' is used currently because there is no gitflow implemented.
+                    Simplified gitflow that is allowing first to merge to master
+                    and then to deploy to production from this branch.
+                    In real life it would be better to stick to release branches,
+                    to deploy from there and finally merge to master.
                     */
-                    if (!(env.GIT_BRANCH == 'master')) {
+                    if (env.GIT_BRANCH != 'master') {
                         error('You can use this pipeline only from master branch!')
                     }
-                    echo 'Exposing Azure-specific env variables...'
-                    configFileProvider([
-                        configFile(
-                            fileId: 'azure-config',
-                            variable: 'AZURE_CONFIGURATION'
-                        )
-                    ]) {
-                        // Split by each line, then split by '=' and remove quotes
-                        azureVariables = readFile("${env.AZURE_CONFIGURATION}").split('\n').collect { azVar ->
-                            azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
-                        }
-                        env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
-                        env.AZURE_TENANT = azureVariables[1]
-                        env.AZURE_TENANT_ID = azureVariables[2]
-                        env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
-                        env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
-                        env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
-                        env.AZURE_INGRESS_DOMAIN = azureVariables[6]
-                        env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
-                    }
+                    exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing other variables...'
                     env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
-                }
-            }
-        }
-        stage('Download Docker image') {
-            steps {
-                script {
                     sh '''
                     az login --service-principal \
                     --username $AZURE_SP_USR \
                     --password $AZURE_SP_PSW \
                     --tenant $AZURE_TENANT
                     '''
+                }
+            }
+        }
+        stage('Download Docker image') {
+            steps {
+                script {
                     def imageTags = sh(
                         returnStdout: true,
                         script: '''
@@ -134,13 +117,13 @@ pipeline {
                     ).trim()
                     if (imageConditionalRelease.toBoolean()) {
                         echo "Image contains CONDITIONAL_RELEASE flag, requesting user input..."
-                        def tagMap = [
+                        def labelsMap = [
                             "CONDITIONAL_REL_ACCEPTED_BY": null,
                             "LEAKED_SECRETS_CHECK": null,
                             "DEPENDENCY_SECURITY_CHECK": null,
                             "SONAR_QG_STATUS": null
                         ]
-                        for (i in tagMap) {
+                        for (i in labelsMap) {
                             conditionResult = sh(
                                 returnStdout: true,
                                 script: """
@@ -148,7 +131,7 @@ pipeline {
                                 ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
                                 """
                             ).trim()
-                            tagMap."${i.key}" = "${conditionResult}"
+                            labelsMap."${i.key}" = "${conditionResult}"
                         }
                         operatorInput = input(
                             message: 'CONDITIONAL_RELEASE flag on image',
@@ -159,7 +142,7 @@ pipeline {
                                     description: 'This image contains CONDITIONAL_RELEASE flag set to true.\n' +
                                     'Do you want to proceed with deployment of this image?\n' +
                                     'This image does not meet all requirements:\n\n' +
-                                    "${tagMap}"
+                                    "${labelsMap}"
                                 )
                             ],
                             submitterParameter: 'acceptedBy'
@@ -195,7 +178,6 @@ pipeline {
                         --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
                         '''
                     }
-                    // TODO: create PR to master after successfull deployment to prod
                 }
             }
         }

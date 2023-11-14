@@ -67,14 +67,14 @@ http://127.0.0.1:5000/
 ## Usage
 
 Application:
-List of all endpoints is available at http://127.0.0.1:500/
+List of all endpoints is available at http://127.0.0.1:5000/
 
 Example:
 POST
 ```
-curl -X POST -H "Content-Type: application/json" -d "{\"name\": \"testpizza\", \"price\": \"29.99\"}"  http://127.0.0.1:5000/api/v1/pizza/
+curl -L -X POST -H "Content-Type: application/json" -d "{\"name\": \"testpizza\", \"price\": \"29.99\"}"  http://127.0.0.1:5000/api/v1/pizza
 ```
 GET
 ```
-curl -X GET http://127.0.0.1:5000/api/v1/pizza/
+curl -L -X GET http://127.0.0.1:5000/api/v1/pizza
 ```

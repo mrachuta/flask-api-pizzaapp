@@ -17,11 +17,11 @@ Basic Kubernetes cluster setup to run flask-api-pizzaapp
   ```
 * Deploy ingress-nginx:
   ```
-  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
+  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
   ```
 * Deploy cert-manager:
   ```
-  kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.0/cert-manager.yaml
+  kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.1/cert-manager.yaml
   ```
 * Cert manager basic setup (Let's encrypt)
   * Set correct e-mail in yaml file:

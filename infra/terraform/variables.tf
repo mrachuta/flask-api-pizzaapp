@@ -10,6 +10,18 @@ variable "extra_tags" {
   description = "Additional tags to be added to each resource"
 }
 
+variable "provision_acr" {
+  type        = bool
+  default     = true
+  description = "Set to true to provision Azure Container Registry"
+}
+
+variable "provision_aks" {
+  type        = bool
+  default     = false
+  description = "Set to true to provision Azure Kubernetes Service (Cluster)"
+}
+
 variable "acr_name" {
   type        = string
   default     = "myacr01"

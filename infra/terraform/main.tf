@@ -3,6 +3,7 @@ data "azurerm_resource_group" "rg" {
 }
 
 resource "azurerm_container_registry" "acr" {
+  count               = var.provision_acr == true ? 1 : 0
   name                = var.acr_name
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = data.azurerm_resource_group.rg.location
@@ -17,6 +18,7 @@ resource "azurerm_container_registry" "acr" {
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
+  count               = var.provision_aks == true ? 1 : 0
   name                = var.aks_name
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = data.azurerm_resource_group.rg.location
