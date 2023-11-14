@@ -36,12 +36,14 @@ pipeline {
         booleanParam(
             name: 'DEPLOY_ACR',
             defaultValue: false,
-            description: 'Do you want to deploy / keep Azure Container Registry?'
+            description: 'Do you want to deploy / keep Azure Container Registry?\n' +
+            '(ignored during destroy)'
         )
         booleanParam(
             name: 'DEPLOY_AKS',
             defaultValue: false,
-            description: 'Do you want to deploy / keep Azure Kubernetes Service?'
+            description: 'Do you want to deploy / keep Azure Kubernetes Service?\n' +
+            '(ignored during destroy)'
         )
         booleanParam(
             name: 'DEPLOY_K8S_RESOURCES',
@@ -127,6 +129,8 @@ pipeline {
                 anyOf {
                     expression { env.DEPLOY_ACR == 'true' }
                     expression { env.DEPLOY_AKS == 'true' }
+                    expression { env.TF_ACTION == 'destroy' }
+                    expression { env.TF_ACTION == 'plan -destroy' }
                 }
             }
             steps {
@@ -155,7 +159,7 @@ pipeline {
                             terraform plan -destroy -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
-                            -var provision_aks=$DEPLOY_ACR \
+                            -var provision_aks=$DEPLOY_AKS \
                             -var acr_name=$AZURE_REGISTRY_NAME  \
                             -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
                             -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
@@ -166,14 +170,22 @@ pipeline {
                             terraform plan -destroy -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
-                            -var provision_aks=$DEPLOY_ACR \
+                            -var provision_aks=$DEPLOY_AKS \
                             -var acr_name=$AZURE_REGISTRY_NAME  \
                             -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
                             -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
                             terraform $TF_ACTION -input=false -auto-approve tfplan
                             '''
                         } else {
-                            sh 'terraform $TF_ACTION -input=false'
+                            sh '''
+                            terraform $TF_ACTION -input=false \
+                            -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
+                            -var provision_acr=$DEPLOY_ACR \
+                            -var provision_aks=$DEPLOY_AKS \
+                            -var acr_name=$AZURE_REGISTRY_NAME  \
+                            -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
+                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
+                            '''
                         }
                     }
                 }
