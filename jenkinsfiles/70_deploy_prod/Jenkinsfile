@@ -51,12 +51,12 @@ pipeline {
                         error("You are not allowed to deploy to ${env.TARGET_ENV}!")
                     }
                     /* 
-                    TODO: 
-                    1. Introduce release branches
-                    2. Add option to verify if image commit is part of current branch
-                    'master' is used currently because there is no gitflow implemented.
+                    Simplified gitflow that is allowing first to merge to master
+                    and then to deploy to production from this branch.
+                    In real life it would be better to stick to release branches,
+                    to deploy from there and finally merge to master.
                     */
-                    if (!(env.GIT_BRANCH == 'master')) {
+                    if (env.GIT_BRANCH != 'master') {
                         error('You can use this pipeline only from master branch!')
                     }
                     exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
@@ -117,13 +117,13 @@ pipeline {
                     ).trim()
                     if (imageConditionalRelease.toBoolean()) {
                         echo "Image contains CONDITIONAL_RELEASE flag, requesting user input..."
-                        def tagMap = [
+                        def labelsMap = [
                             "CONDITIONAL_REL_ACCEPTED_BY": null,
                             "LEAKED_SECRETS_CHECK": null,
                             "DEPENDENCY_SECURITY_CHECK": null,
                             "SONAR_QG_STATUS": null
                         ]
-                        for (i in tagMap) {
+                        for (i in labelsMap) {
                             conditionResult = sh(
                                 returnStdout: true,
                                 script: """
@@ -131,7 +131,7 @@ pipeline {
                                 ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
                                 """
                             ).trim()
-                            tagMap."${i.key}" = "${conditionResult}"
+                            labelsMap."${i.key}" = "${conditionResult}"
                         }
                         operatorInput = input(
                             message: 'CONDITIONAL_RELEASE flag on image',
@@ -142,7 +142,7 @@ pipeline {
                                     description: 'This image contains CONDITIONAL_RELEASE flag set to true.\n' +
                                     'Do you want to proceed with deployment of this image?\n' +
                                     'This image does not meet all requirements:\n\n' +
-                                    "${tagMap}"
+                                    "${labelsMap}"
                                 )
                             ],
                             submitterParameter: 'acceptedBy'
@@ -178,7 +178,6 @@ pipeline {
                         --set env.secrets.FLASK_DB_PASS="${DATABASE_CRED_PSW}"
                         '''
                     }
-                    // TODO: create PR to master after successfull deployment to prod
                 }
             }
         }
