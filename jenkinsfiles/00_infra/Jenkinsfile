@@ -156,7 +156,7 @@ pipeline {
                         sh 'terraform validate'
                         if (env.TF_ACTION == 'apply') {
                             sh '''
-                            terraform plan -destroy -out=tfplan -input=false \
+                            terraform plan -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
                             -var provision_aks=$DEPLOY_AKS \
