@@ -154,7 +154,11 @@ pipeline {
                     dir('infra/terraform') {
                         sh 'terraform init -input=false'
                         sh 'terraform validate'
-                        if (params.TF_ACTION == 'apply') {
+                        /*
+                        env.PARAM_NAME can be used instead of params.PARAM_NAME;
+                        it's basically the same object
+                        */ 
+                        if (env.TF_ACTION == 'apply') {
                             sh '''
                             terraform plan -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
@@ -165,7 +169,7 @@ pipeline {
                             -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
                             terraform $TF_ACTION -input=false -auto-approve tfplan
                             '''
-                        } else if (params.TF_ACTION == 'destroy') {
+                        } else if (env.TF_ACTION == 'destroy') {
                             sh '''
                             terraform plan -destroy -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
