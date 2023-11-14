@@ -2,7 +2,7 @@
 
 def leakedSecretsCheck = 'UNKNOWN'
 def dependencySecurityCheck = 'UNKNOWN'
-def sonarQGStatus = 'UNKNOWN'
+def sonarQgStatus = 'UNKNOWN'
 
 pipeline {
     agent {
@@ -175,6 +175,7 @@ pipeline {
                         nodeJsToolId: 'nodejs_default',
                         sonarQubeServerId: 'sonarqube_default'
                     )
+                    sonarQgStatus = runSonarQubeAnalysis.checkQualityGateResult()
                 }
             }
         }
@@ -215,7 +216,7 @@ pipeline {
                     --label BUILD_NO=${env.BUILD_NUMBER} \
                     --label LEAKED_SECRETS_CHECK=${leakedSecretsCheck} \
                     --label DEPENDENCY_SECURITY_CHECK=${dependencySecurityCheck} \
-                    --label SONAR_QG_STATUS=${sonarQGStatus}
+                    --label SONAR_QG_STATUS=${sonarQgStatus}
                     """
                     sh '''
                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
