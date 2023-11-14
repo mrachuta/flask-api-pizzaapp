@@ -2,8 +2,8 @@
 
 // Set flags to require conditional acceptance
 // to promote the image
-def releaseReqMeet = true
-def conditionalRelease = false
+def releaseReqMeet
+def conditionalRelease
 
 pipeline {
     agent {
@@ -105,13 +105,13 @@ pipeline {
                         ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
                         '''
                     ).trim()
-                    def tagMap = [
+                    def labelsMap = [
                         "LEAKED_SECRETS_CHECK": null,
                         "DEPENDENCY_SECURITY_CHECK": null,
                         "SONAR_QG_STATUS": null,
                     ]
                     // Check if each image tag value equals "OK"
-                    for (i in tagMap) {
+                    for (i in labelsMap) {
                         echo "Verify if image meets the condition ${i.key}..."
                         conditionResult = sh(
                             returnStdout: true,
@@ -131,7 +131,7 @@ pipeline {
                             conditionalRelease = true
                         }
                         // Update map entry
-                        tagMap."${i.key}" = "${conditionResult}"
+                        labelsMap."${i.key}" = "${conditionResult}"
                     }
                     if (conditionalRelease) {
                         operatorInput = input(
