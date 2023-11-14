@@ -1,2 +1,2 @@
 [run]
-omit = pizzaapp/tests/*, migrations/*, pizzaapp/config.py, manage.py
+omit = infra/**, pizzaapp/tests/*, migrations/*, pizzaapp/config.py, manage.py

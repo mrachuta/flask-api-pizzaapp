@@ -305,3 +305,8 @@ infra/kubernetes/*
 !infra/kubernetes/*.md
 !infra/kubernetes/namespaces.yaml
 !infra/kubernetes/letsencrypt-staging-clusterissuer.yaml
+!infra/kubernetes/*.sh
+
+
+### Misc block
+infra/misc/*.conf

@@ -1,6 +1,8 @@
-// Set flags to require conditional acceptance
-// to promote the image
+@Library('jenkins-shared-libs@development') _
+
+// Set by default that release meets the requirements
 def releaseReqMeet = true
+// Set by default that it's not a conditional release
 def conditionalRelease = false
 
 pipeline {
@@ -47,39 +49,21 @@ pipeline {
                     if (!(env.GIT_BRANCH == 'development')) {
                         error('You can use this pipeline only from development branch!')
                     }
-                    echo 'Exposing Azure-specific env variables...'
-                    configFileProvider([
-                        configFile(
-                            fileId: 'azure-config',
-                            variable: 'AZURE_CONFIGURATION'
-                        )
-                    ]) {
-                        // Split by each line, then split by '=' and remove quotes
-                        azureVariables = readFile("${env.AZURE_CONFIGURATION}").split('\n').collect { azVar ->
-                            azVar.split('=').last().replaceAll("^\"|^\'|\'\$|\"\$", "")
-                        }
-                        env.AZURE_SUBSCRIPTION_ID = azureVariables[0]
-                        env.AZURE_TENANT = azureVariables[1]
-                        env.AZURE_TENANT_ID = azureVariables[2]
-                        env.AZURE_KUBE_CLUSTER_NAME = azureVariables[3]
-                        env.AZURE_REGISTRY_ADDRESS = azureVariables[4]
-                        env.AZURE_RESOURCE_GROUP_NAME = azureVariables[5]
-                        env.AZURE_INGRESS_DOMAIN = azureVariables[6]
-                    }
+                    exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing other variables...'
                     env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
-                }
-            }
-        }
-        stage('Select image to release') {
-            steps {
-                script {
                     sh '''
                     az login --service-principal \
                     --username $AZURE_SP_USR \
                     --password $AZURE_SP_PSW \
                     --tenant $AZURE_TENANT
                     '''
+                }
+            }
+        }
+        stage('Select image to release') {
+            steps {
+                script {
                     def imageTags = sh(
                         returnStdout: true,
                         script: '''
@@ -121,13 +105,13 @@ pipeline {
                         ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
                         '''
                     ).trim()
-                    def tagMap = [
+                    def labelsMap = [
                         "LEAKED_SECRETS_CHECK": null,
                         "DEPENDENCY_SECURITY_CHECK": null,
                         "SONAR_QG_STATUS": null,
                     ]
                     // Check if each image tag value equals "OK"
-                    for (i in tagMap) {
+                    for (i in labelsMap) {
                         echo "Verify if image meets the condition ${i.key}..."
                         conditionResult = sh(
                             returnStdout: true,
@@ -147,7 +131,7 @@ pipeline {
                             conditionalRelease = true
                         }
                         // Update map entry
-                        tagMap."${i.key}" = "${conditionResult}"
+                        labelsMap."${i.key}" = "${conditionResult}"
                     }
                     if (conditionalRelease) {
                         operatorInput = input(
@@ -246,7 +230,7 @@ pipeline {
                     git tag -a ${NEW_RELEASE_TAG} ${IMAGE_COMMIT_ID} -m "Version ${NEW_RELEASE_TAG}"
                     '''
                     echo 'Tagging docker image...'
-                    if (conditionalRelease || releaseReqMeet) {
+                    if (conditionalRelease && releaseReqMeet) {
                         // Took from SO: https://stackoverflow.com/a/54598281
                         echo 'Rebuilding image to add new labels because of conditional release'
                         sh '''
