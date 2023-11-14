@@ -84,7 +84,7 @@ pipeline {
             }
         }
         stage('Run tests') {
-            when { expression { env.RUN_TESTS == 'true' } }
+            when { expression { params.RUN_TESTS } }
             steps {
                 script {
                     dir('infra/terraform') {
@@ -112,7 +112,7 @@ pipeline {
             }
         }
         stage('Run checkov over terraform code') {
-            when { expression { env.RUN_CHECKOV == 'true' } }
+            when { expression { params.RUN_CHECKOV } }
             steps {
                 sh 'pip3 install checkov'
                 sh 'checkov --config-file ./checkov-terraform.yml'
@@ -127,10 +127,10 @@ pipeline {
         stage('Run terraform') {
             when {
                 anyOf {
-                    expression { env.DEPLOY_ACR == 'true' }
-                    expression { env.DEPLOY_AKS == 'true' }
-                    expression { env.TF_ACTION == 'destroy' }
-                    expression { env.TF_ACTION == 'plan -destroy' }
+                    expression { params.DEPLOY_ACR }
+                    expression { params.DEPLOY_AKS }
+                    expression { params.TF_ACTION == 'destroy' }
+                    expression { params.TF_ACTION == 'plan -destroy' }
                 }
             }
             steps {
@@ -154,7 +154,7 @@ pipeline {
                     dir('infra/terraform') {
                         sh 'terraform init -input=false'
                         sh 'terraform validate'
-                        if (env.TF_ACTION == 'apply') {
+                        if (params.TF_ACTION == 'apply') {
                             sh '''
                             terraform plan -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
@@ -165,7 +165,7 @@ pipeline {
                             -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
                             terraform $TF_ACTION -input=false -auto-approve tfplan
                             '''
-                        } else if (env.TF_ACTION == 'destroy') {
+                        } else if (params.TF_ACTION == 'destroy') {
                             sh '''
                             terraform plan -destroy -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
@@ -193,7 +193,7 @@ pipeline {
         }
         stage('Deploy k8s resources') {
             when {
-                expression { env.DEPLOY_K8S_RESOURCES == 'true' }
+                expression { params.DEPLOY_K8S_RESOURCES }
             }
             steps {
                 script {
