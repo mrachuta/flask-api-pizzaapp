@@ -1,9 +1,9 @@
 @Library('jenkins-shared-libs@development') _
 
-// Set flags to require conditional acceptance
-// to promote the image
-def releaseReqMeet
-def conditionalRelease
+// Set by default that release meets the requirements
+def releaseReqMeet = true
+// Set by default that it's not a conditional release
+def conditionalRelease = false
 
 pipeline {
     agent {
