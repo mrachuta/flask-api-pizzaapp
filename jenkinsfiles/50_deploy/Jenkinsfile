@@ -98,9 +98,13 @@ pipeline {
                         )
                     }
                     echo "Image tag selected to deploy: ${env.SELECTED_TAG}"
+                    sh '''
+                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
+                    --output tsv --query accessToken | \
+                    docker login $AZURE_REGISTRY_ADDRESS --username $AZURE_REGISTRY_USR --password-stdin
+                    docker pull ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
+                    '''
                 }
-                // TODO: Add option to verify if commit is part of development branch
-                // if uat-env is used
             }
         }
         stage('Deploy to target environment') {
@@ -152,7 +156,28 @@ pipeline {
                             unstable('Not all release conditions are meet; proceding with conditional release; ' +
                             "accepted by ${operatorInput.acceptedBy}; marking build as unstable!")
                         }
-                    }                                      
+                    }
+                    echo "Checking out to following tag: ${env.SELECTED_TAG}"
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [
+                            [name: env.SELECTED_TAG]
+                        ],
+                        extensions: [
+                            [
+                                $class: 'CloneOption',
+                                honorRefspec: true,
+                                noTags: false,
+                                shallow: false
+                            ]
+                        ],
+                        userRemoteConfigs: [
+                            [
+                                credentialsId: scm.userRemoteConfigs[0].credentialsId,
+                                url: env.GIT_URL
+                            ]
+                        ]
+                    ])                    
                     echo "Deploying to ${env.TARGET_ENV}"
                     withCredentials([
                         usernamePassword(

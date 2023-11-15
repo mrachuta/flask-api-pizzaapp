@@ -50,12 +50,7 @@ pipeline {
                     if (!(allowedUsers.contains(triggerUser))) {
                         error("You are not allowed to deploy to ${env.TARGET_ENV}!")
                     }
-                    /* 
-                    Simplified gitflow that is allowing first to merge to master
-                    and then to deploy to production from this branch.
-                    In real life it would be better to stick to release branches,
-                    to deploy from there and finally merge to master.
-                    */
+                    // Allow to run pipeline only from master branch
                     if (env.GIT_BRANCH != 'master') {
                         error('You can use this pipeline only from master branch!')
                     }
@@ -153,7 +148,30 @@ pipeline {
                             unstable('Not all release conditions are meet; proceding with conditional release; ' +
                             "accepted by ${operatorInput.acceptedBy}")
                         }
-                    }     
+                    }
+                    echo "Checking out to following tag: ${env.SELECTED_TAG}"
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [
+                            [name: env.SELECTED_TAG]
+                        ],
+                        extensions: [
+                            [
+                                $class: 'CloneOption',
+                                honorRefspec: true,
+                                noTags: false,
+                                shallow: false
+                            ]
+                        ],
+                        userRemoteConfigs: [
+                            [
+                                credentialsId: scm.userRemoteConfigs[0].credentialsId,
+                                url: env.GIT_URL
+                            ]
+                        ]
+                    ])
+                    echo "Checking out to following commit id ${env.RELEASE_COMMIT_ID} that was used to create image..."
+                    sh 'git checkout $RELEASE_COMMIT_ID'     
                     echo "Deploying to ${env.TARGET_ENV}"
                     withCredentials([
                         usernamePassword(
