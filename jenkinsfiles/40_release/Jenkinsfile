@@ -268,6 +268,7 @@ pipeline {
                             echo 'Reverting changes...'
                             sh 'az acr repository delete --yes --name ${AZURE_REGISTRY_ADDRESS} --image ${APP_NAME}:${NEW_RELEASE_TAG} || true'
                             sh 'git push --delete https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_URL#https://} ${NEW_RELEASE_TAG} || true'
+                            error('Failed to promote image!')
                         }
                     }
                 }
@@ -276,6 +277,27 @@ pipeline {
         stage('Deploy to target environment') {
             steps {
                 script {
+                    echo "Checking out to following tag: ${env.NEW_RELEASE_TAG}"
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [
+                            [name: env.NEW_RELEASE_TAG]
+                        ],
+                        extensions: [
+                            [
+                                $class: 'CloneOption',
+                                honorRefspec: true,
+                                noTags: false,
+                                shallow: false
+                            ]
+                        ],
+                        userRemoteConfigs: [
+                            [
+                                credentialsId: scm.userRemoteConfigs[0].credentialsId,
+                                url: env.GIT_URL
+                            ]
+                        ]
+                    ])
                     echo "Deploying to ${env.TARGET_ENV}"
                     withCredentials([
                         usernamePassword(
