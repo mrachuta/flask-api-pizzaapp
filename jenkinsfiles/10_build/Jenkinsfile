@@ -214,7 +214,7 @@ pipeline {
         stage('Create Docker image') {
             when { expression { params.CREATE_IMAGE } }
             steps {
-                container(name: 'kaniko', shell: '/busybox/sh') {
+                container(name: 'kaniko') {
                     script {
                         if (!params.RUN_LEAKED_SECRETS_CHECK || !params.RUN_LINTER || !params.RUN_UNIT_TESTS) {
                             error(
@@ -232,11 +232,11 @@ pipeline {
                             // TODO: Create shared lib
                             echo 'Creating auth configuration'
                             azureRegistryCredsEnc = sh(
-                                script: 'echo -n "${AZURE_REGISTRY_USR}:${AZURE_REGISTRY_TOKEN}" | base64',
+                                script: 'set +x; echo -n "${AZURE_REGISTRY_USR}:${AZURE_REGISTRY_TOKEN}" | base64',
                                 returnStdout: true
                             ).trim()
                             nexusRegistryCredsEnc = sh(
-                                script: 'echo -n "${TECHNICAL_ACCOUNT_USR}:${TECHNICAL_ACCOUNT_PSW}" | base64',
+                                script: 'set +x; echo -n "${TECHNICAL_ACCOUNT_USR}:${TECHNICAL_ACCOUNT_PSW}" | base64',
                                 returnStdout: true
                             ).trim()
                             configJson = [
