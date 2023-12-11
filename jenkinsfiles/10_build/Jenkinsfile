@@ -228,7 +228,6 @@ pipeline {
                         All commands have to be performed inside withEnv wrapper
                         */
                         withEnv(["PATH+EXTRA=/kaniko:/busybox"]) {
-                            echo 'Creating auth configuration'
                             // TODO: Create shared lib
                             echo 'Creating auth configuration'
                             azureRegistryCredsEnc = sh(
