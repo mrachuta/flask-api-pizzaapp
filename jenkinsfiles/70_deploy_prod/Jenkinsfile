@@ -7,7 +7,7 @@ def allowedUsers = [
 
 pipeline {
     agent {
-        label 'azure-docker'
+        label 'azure'
     }
     options {
         buildDiscarder(
@@ -23,7 +23,8 @@ pipeline {
         ansiColor('xterm')
     }
     environment {
-        PATH = "$PATH:$HOME/.local/bin"
+        CRANE_HOME = tool(name: 'crane_default', type: 'com.cloudbees.jenkins.plugins.customtools.CustomTool')
+        PATH = "$PATH:$HOME/.local/bin:$CRANE_HOME"
         APP_NAME = 'flask-api-pizzaapp'
         TARGET_ENV = 'prod-env'
         AZURE_SP = credentials('azure-aks-testcluster-service-principal')
@@ -63,10 +64,18 @@ pipeline {
                     --password $AZURE_SP_PSW \
                     --tenant $AZURE_TENANT
                     '''
+                    env.AZURE_REGISTRY_TOKEN = sh(
+                        script: '''
+                        set +x
+                        az acr login --name $AZURE_REGISTRY_ADDRESS \
+                        --expose-token --output tsv --query accessToken
+                        ''',
+                        returnStdout: true
+                    ).trim()
                 }
             }
         }
-        stage('Download Docker image') {
+        stage('Get Docker image') {
             steps {
                 script {
                     def imageTags = sh(
@@ -91,10 +100,11 @@ pipeline {
                     }
                     echo "Image tag selected to deploy: ${env.SELECTED_TAG}"
                     sh '''
-                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
-                    --output tsv --query accessToken | \
-                    docker login $AZURE_REGISTRY_ADDRESS --username $AZURE_REGISTRY_USR --password-stdin
-                    docker pull ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
+                    set +x
+                    echo $AZURE_REGISTRY_TOKEN > azcr.token
+                    set -x
+                    cat azcr.token | crane auth login $AZURE_REGISTRY_ADDRESS \
+                    --username $AZURE_REGISTRY_USR --password-stdin
                     '''
                 }
             }
@@ -103,14 +113,14 @@ pipeline {
             steps {
                 script {
                     echo "Verifying if release is conditional..."
-                    imageConditionalRelease = sh(
-                        returnStdout: true,
-                        script: '''
-                        docker inspect --format '{{ index .Config.Labels "CONDITIONAL_RELEASE" }}' \
-                        ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
-                        '''
-                    ).trim()
-                    if (imageConditionalRelease.toBoolean()) {
+                    imageDataJson = readJSON(
+                        text: sh(
+                            script: 'crane config ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}',
+                            returnStdout: true
+                        ).trim(),
+                        returnPojo: true
+                    )
+                    if ((imageDataJson.config.Labels.CONDITIONAL_RELEASE).toBoolean()) {
                         echo "Image contains CONDITIONAL_RELEASE flag, requesting user input..."
                         def labelsMap = [
                             "CONDITIONAL_REL_ACCEPTED_BY": null,
@@ -119,13 +129,7 @@ pipeline {
                             "SONAR_QG_STATUS": null
                         ]
                         for (i in labelsMap) {
-                            conditionResult = sh(
-                                returnStdout: true,
-                                script: """
-                                docker inspect --format "{{ index .Config.Labels "'"${i.key}"'" }}" \
-                                ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
-                                """
-                            ).trim()
+                            conditionResult = imageDataJson.config.Labels.(i.key)
                             labelsMap."${i.key}" = "${conditionResult}"
                         }
                         operatorInput = input(

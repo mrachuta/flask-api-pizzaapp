@@ -6,7 +6,7 @@ def sonarQgStatus = 'UNKNOWN'
 
 pipeline {
     agent {
-        label 'azure-docker'
+        label 'azure'
     }
     options {
         buildDiscarder(
@@ -30,6 +30,7 @@ pipeline {
         AZURE_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
         TECHNICAL_ACCOUNT = credentials('technical-account-ldap')
         PRIVATE_REGISTRY_ADDRESS = 'nexus3.k8s.lan:50000'
+        PRIVATE_REGISTRY_ADDRESS_PULL = 'nexus3.k8s.lan:50001'
     }
     parameters {
         booleanParam(
@@ -89,12 +90,29 @@ pipeline {
                     --password $AZURE_SP_PSW \
                     --tenant $AZURE_TENANT
                     '''
+                    echo 'Getting service principal token...'
+                    env.AZURE_REGISTRY_TOKEN = sh(
+                        script: '''
+                        set +x
+                        az acr login --name $AZURE_REGISTRY_ADDRESS \
+                        --expose-token --output tsv --query accessToken
+                        ''',
+                        returnStdout: true
+                    ).trim()
                 }
             }
         }
         stage('Install packages') {
             steps {
-                sh 'pip install -r requirements.txt'
+                sh 'cp requirements.txt requirements-dev.txt'
+                /*
+                Replace psycopg2 by psycopg2 to avoid compilation
+                and erros caused by missling libpq-dev package on
+                Jenkins node image; psycopg2-binary is not recommended
+                for production usage
+                */ 
+                sh 'sed -i \'s/psycopg2/psycopg2-binary/g\' requirements-dev.txt'
+                sh 'pip install -r requirements-dev.txt'
             }
         }
         stage('Run leaked-secrets check') {
@@ -196,35 +214,58 @@ pipeline {
         stage('Create Docker image') {
             when { expression { params.CREATE_IMAGE } }
             steps {
-                script {
-                    if (!params.RUN_LEAKED_SECRETS_CHECK || !params.RUN_LINTER || !params.RUN_UNIT_TESTS) {
-                        error(
-                            'You canot create image without passing at least: linter, ' +
-                            'unit tests and leaked-secrets stages!'
-                        )
+                container(name: 'kaniko') {
+                    script {
+                        if (!params.RUN_LEAKED_SECRETS_CHECK || !params.RUN_LINTER || !params.RUN_UNIT_TESTS) {
+                            error(
+                                'You canot create image without passing at least: linter, ' +
+                                'unit tests and leaked-secrets stages!'
+                            )
+                        }
+                        echo "Building image with tag: ${env.TAG_NAME}"
+                        /* 
+                        BUG: https://github.com/GoogleContainerTools/kaniko/issues/1212#issuecomment-971623379
+                        All commands have to be performed inside withEnv wrapper
+                        */
+                        withEnv(["PATH+EXTRA=/kaniko:/busybox"]) {
+                            // TODO: Create shared lib
+                            echo 'Creating auth configuration'
+                            azureRegistryCredsEnc = sh(
+                                script: 'set +x; echo -n "${AZURE_REGISTRY_USR}:${AZURE_REGISTRY_TOKEN}" | base64',
+                                returnStdout: true
+                            ).trim()
+                            nexusRegistryCredsEnc = sh(
+                                script: 'set +x; echo -n "${TECHNICAL_ACCOUNT_USR}:${TECHNICAL_ACCOUNT_PSW}" | base64',
+                                returnStdout: true
+                            ).trim()
+                            configJson = [
+                                "auths": [
+                                    "${env.AZURE_REGISTRY_ADDRESS}": [
+                                        "auth": azureRegistryCredsEnc
+                                    ],
+                                    "${env.PRIVATE_REGISTRY_ADDRESS}": [
+                                        "auth": nexusRegistryCredsEnc
+                                    ],
+                                    "${env.PRIVATE_REGISTRY_ADDRESS_PULL}": [
+                                        "auth": nexusRegistryCredsEnc
+                                    ]
+                                ]
+                            ]
+                            writeJSON(file: 'config.json', json: configJson)
+                            sh """
+                            mv config.json /kaniko/.docker/config.json
+                            /kaniko/executor --dockerfile="./Dockerfile" \
+                            --destination="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${TAG_NAME}" \
+                            --context="." --insecure --insecure-pull \
+                            --label COMMIT_ID=${env.GIT_COMMIT} \
+                            --label BRANCH=${env.GIT_BRANCH} \
+                            --label BUILD_NO=${env.BUILD_NUMBER} \
+                            --label LEAKED_SECRETS_CHECK=${leakedSecretsCheck} \
+                            --label DEPENDENCY_SECURITY_CHECK=${dependencySecurityCheck} \
+                            --label SONAR_QG_STATUS=${sonarQgStatus}
+                            """
+                        }
                     }
-                    echo "Building image with tag: ${env.TAG_NAME}"
-                    sh '''
-                    echo "$TECHNICAL_ACCOUNT_PSW" | \
-                    docker login $PRIVATE_REGISTRY_ADDRESS --username $TECHNICAL_ACCOUNT_USR --password-stdin
-                    '''
-                    sh """
-                    docker build . --pull --network host \
-                    --tag ${env.APP_NAME}:${env.TAG_NAME} \
-                    --label COMMIT_ID=${env.GIT_COMMIT} \
-                    --label BRANCH=${env.GIT_BRANCH} \
-                    --label BUILD_NO=${env.BUILD_NUMBER} \
-                    --label LEAKED_SECRETS_CHECK=${leakedSecretsCheck} \
-                    --label DEPENDENCY_SECURITY_CHECK=${dependencySecurityCheck} \
-                    --label SONAR_QG_STATUS=${sonarQgStatus}
-                    """
-                    sh '''
-                    az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
-                    --output tsv --query accessToken | \
-                    docker login $AZURE_REGISTRY_ADDRESS --username $AZURE_REGISTRY_USR --password-stdin
-                    docker tag ${APP_NAME}:${TAG_NAME} ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${TAG_NAME}
-                    docker push ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${TAG_NAME}
-                    '''
                 }
             }
         }
