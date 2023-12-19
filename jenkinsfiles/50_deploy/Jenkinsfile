@@ -1,4 +1,4 @@
-@Library('jenkins-shared-libs@development') _
+@Library('jenkins-shared-libs') _
 
 pipeline {
     agent {
