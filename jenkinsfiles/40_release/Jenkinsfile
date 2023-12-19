@@ -1,4 +1,4 @@
-@Library('jenkins-shared-libs@development') _
+@Library('jenkins-shared-libs') _
 
 // Set by default that release meets the requirements
 def releaseReqMeet = true
