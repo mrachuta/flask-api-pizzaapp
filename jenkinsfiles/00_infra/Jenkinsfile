@@ -20,7 +20,7 @@ pipeline {
     }
     environment {
         PATH = "$PATH:$HOME/.local/bin"
-        AZURE_SP = credentials('azure-aks-testcluster-service-principal')
+        AZURE_SP = credentials('azure-sp')
     }
     parameters {
         booleanParam(
@@ -63,6 +63,7 @@ pipeline {
                     dbCredentialsId = 'flask-api-pizzaapp-database-dev-env'
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
+                    // Exposing multiple variables like AZURE_SUBSCRIPTION_ID etc.
                     exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing rest of variables...'
                     env.AZURE_REGISTRY_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
@@ -178,7 +179,7 @@ pipeline {
                             -var acr_name=$AZURE_REGISTRY_NAME  \
                             -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
                             -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
-                            terraform $TF_ACTION -input=false -auto-approve tfplan
+                            terraform apply -input=false -auto-approve tfplan
                             '''
                         } else {
                             sh '''
