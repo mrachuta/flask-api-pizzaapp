@@ -21,8 +21,7 @@ pipeline {
         CRANE_HOME = tool(name: 'crane_default', type: 'com.cloudbees.jenkins.plugins.customtools.CustomTool')
         PATH = "$PATH:$HOME/.local/bin:$CRANE_HOME"
         APP_NAME = 'flask-api-pizzaapp'
-        AZURE_SP = credentials('azure-aks-testcluster-service-principal')
-        AZURE_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
+        AZURE_SP = credentials('azure-sp')
     }
     parameters {
         choice(
@@ -64,6 +63,7 @@ pipeline {
                             error('Unknow environment!')
                             break;
                     }
+                    // Exposing multiple variables like AZURE_SUBSCRIPTION_ID etc.
                     exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing other variables...'
                     env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
@@ -73,14 +73,6 @@ pipeline {
                     --password $AZURE_SP_PSW \
                     --tenant $AZURE_TENANT
                     '''
-                    env.AZURE_REGISTRY_TOKEN = sh(
-                        script: '''
-                        set +x
-                        az acr login --name $AZURE_REGISTRY_ADDRESS \
-                        --expose-token --output tsv --query accessToken
-                        ''',
-                        returnStdout: true
-                    ).trim()
                 }
             }
         }
@@ -109,10 +101,11 @@ pipeline {
                     echo "Image tag selected to deploy: ${env.SELECTED_TAG}"
                     sh '''
                     set +x
-                    echo $AZURE_REGISTRY_TOKEN > azcr.token
+                    echo $AZURE_SP_PSW > azcr.psw
                     set -x
-                    cat azcr.token | crane auth login $AZURE_REGISTRY_ADDRESS \
-                    --username $AZURE_REGISTRY_USR --password-stdin
+                    cat azcr.psw | crane auth login $AZURE_REGISTRY_ADDRESS \
+                    --username $AZURE_SP_USR --password-stdin
+                    rm azcr.psw
                     '''
                 }
             }
