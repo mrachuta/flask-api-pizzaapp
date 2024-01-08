@@ -90,15 +90,6 @@ pipeline {
                     --password $AZURE_SP_PSW \
                     --tenant $AZURE_TENANT
                     '''
-                    echo 'Getting service principal token...'
-                    env.AZURE_REGISTRY_TOKEN = sh(
-                        script: '''
-                        set +x
-                        az acr login --name $AZURE_REGISTRY_ADDRESS \
-                        --expose-token --output tsv --query accessToken
-                        ''',
-                        returnStdout: true
-                    ).trim()
                 }
             }
         }
