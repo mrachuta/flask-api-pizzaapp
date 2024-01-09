@@ -1,9 +1,5 @@
 @Library('jenkins-shared-libs') _
 
-def leakedSecretsCheck = 'UNKNOWN'
-def dependencySecurityCheck = 'UNKNOWN'
-def sonarQgStatus = 'UNKNOWN'
-
 pipeline {
     agent {
         label 'azure'
@@ -77,6 +73,9 @@ pipeline {
         stage('Prepare variables') {
             steps {
                 script {
+                    leakedSecretsCheck = 'UNKNOWN'
+                    dependencySecurityCheck = 'UNKNOWN'
+                    sonarQgStatus = 'UNKNOWN'
                     dbCredentialsId = 'flask-api-pizzaapp-database-dev-env'
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"

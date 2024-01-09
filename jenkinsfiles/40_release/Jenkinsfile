@@ -1,10 +1,5 @@
 @Library('jenkins-shared-libs') _
 
-// Set by default that release meets the requirements
-def releaseReqMeet = true
-// Set by default that it's not a conditional release
-def conditionalRelease = false
-
 pipeline {
     agent {
         label 'azure'
@@ -34,6 +29,10 @@ pipeline {
         stage('Prepare variables') {
             steps {
                 script {
+                    // Set by default that release meets the requirements
+                    releaseReqMeet = true
+                    // Set by default that it's not a conditional release
+                    conditionalRelease = false
                     env.GIT_BRANCH = scm.branches[0].name
                     env.GIT_URL = scm.userRemoteConfigs[0].url
                     dbCredentialsId = 'flask-api-pizzaapp-database-uat-env'
