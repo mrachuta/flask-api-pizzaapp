@@ -1,10 +1,5 @@
 @Library('jenkins-shared-libs') _
 
-def allowedUsers = [
-    'mrachuta',
-    'tdeveloper'
-]
-
 pipeline {
     agent {
         label 'azure'
@@ -33,6 +28,11 @@ pipeline {
         stage('Prepare variables') {
             steps {
                 script {
+                    // Users allowed to trigger prod deployment
+                    allowedUsers = [
+                        'mrachuta',
+                        'tdeveloper'
+                    ]
                     def triggerUser= currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').userId[0]
                     env.GIT_BRANCH = scm.branches[0].name
                     env.GIT_URL = scm.userRemoteConfigs[0].url
