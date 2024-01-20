@@ -79,7 +79,7 @@ pipeline {
             steps {
                 script {
                     try {
-                        imageFilter = " | grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'"
+                        imageFilter = "| grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'"
                         imageTags = sh(
                             returnStdout: true,
                             script: '''

@@ -58,7 +58,7 @@ pipeline {
                             break;
                         case 'uat-env':
                             dbCredentialsId = 'flask-api-pizzaapp-database-uat-env'
-                            imageFilter = " | grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'"
+                            imageFilter = "| grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'"
                             break;
                         default:
                             error('Unknow environment!')
