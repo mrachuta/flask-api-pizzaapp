@@ -1,9 +1,5 @@
 @Library('jenkins-shared-libs') _
 
-def leakedSecretsCheck = 'UNKNOWN'
-def dependencySecurityCheck = 'UNKNOWN'
-def sonarQgStatus = 'UNKNOWN'
-
 pipeline {
     agent {
         label 'azure'
@@ -26,8 +22,7 @@ pipeline {
         APP_NAME = 'flask-api-pizzaapp'
         TAG_NAME = "${env.GIT_BRANCH.replaceAll('/', '-').take(23)}-${env.BUILD_NUMBER}"
         TARGET_ENV = 'dev-env'
-        AZURE_SP = credentials('azure-aks-testcluster-service-principal')
-        AZURE_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
+        AZURE_SP = credentials('azure-sp')
         TECHNICAL_ACCOUNT = credentials('technical-account-ldap')
         PRIVATE_REGISTRY_ADDRESS = 'nexus3.k8s.lan:50000'
         PRIVATE_REGISTRY_ADDRESS_PULL = 'nexus3.k8s.lan:50001'
@@ -78,9 +73,13 @@ pipeline {
         stage('Prepare variables') {
             steps {
                 script {
+                    leakedSecretsCheck = 'UNKNOWN'
+                    dependencySecurityCheck = 'UNKNOWN'
+                    sonarQgStatus = 'UNKNOWN'
                     dbCredentialsId = 'flask-api-pizzaapp-database-dev-env'
                     echo "Git repo url: ${env.GIT_URL}"
                     echo "Git branch: ${env.GIT_BRANCH}"
+                    // Exposing multiple variables like AZURE_SUBSCRIPTION_ID etc.
                     exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing rest of variables...'
                     env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
@@ -90,15 +89,6 @@ pipeline {
                     --password $AZURE_SP_PSW \
                     --tenant $AZURE_TENANT
                     '''
-                    echo 'Getting service principal token...'
-                    env.AZURE_REGISTRY_TOKEN = sh(
-                        script: '''
-                        set +x
-                        az acr login --name $AZURE_REGISTRY_ADDRESS \
-                        --expose-token --output tsv --query accessToken
-                        ''',
-                        returnStdout: true
-                    ).trim()
                 }
             }
         }
@@ -150,11 +140,10 @@ pipeline {
                 --cov-report xml:coverage-reports/pycov/report.xml \
                 --junitxml pytest-results.xml 
                 '''
-                publishCoverage(
-                    adapters: [
-                        coberturaAdapter(
-                            path: 'coverage-reports/pycov/report.xml',
-                        )
+                recordCoverage(
+                    skipPublishingChecks: true,
+                    tools: [
+                        [parser: 'COBERTURA', pattern: 'coverage-reports/pycov/report.xml']
                     ]
                 )
                 junit(
@@ -231,7 +220,7 @@ pipeline {
                             // TODO: Create shared lib
                             echo 'Creating auth configuration'
                             azureRegistryCredsEnc = sh(
-                                script: 'set +x; echo -n "${AZURE_REGISTRY_USR}:${AZURE_REGISTRY_TOKEN}" | base64',
+                                script: 'set +x; echo -n "${AZURE_SP_USR}:${AZURE_SP_PSW}" | base64',
                                 returnStdout: true
                             ).trim()
                             nexusRegistryCredsEnc = sh(

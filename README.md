@@ -25,7 +25,7 @@ Pipelines are covering:
   * deployment to artifactory,
   * release-package creation (including tagging and conditions-check)
 - Continious Deployment process
-  * deployment to test, uat or prod env
+  * deployment to dev, uat and prod env
   
 ## Technologies
 * Application: Python3
