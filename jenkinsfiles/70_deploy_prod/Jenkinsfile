@@ -70,14 +70,20 @@ pipeline {
         stage('Get Docker image') {
             steps {
                 script {
-                    def imageTags = sh(
-                        returnStdout: true,
-                        script: '''
-                        az acr repository show-tags --name ${AZURE_REGISTRY_ADDRESS} \
-                        --repository ${APP_NAME} --orderby time_desc --output tsv | \
-                        grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'
-                         '''
-                    ).trim()
+                    try {
+                        imageFilter = "| grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'"
+                        imageTags = sh(
+                            returnStdout: true,
+                            script: '''
+                            az acr repository show-tags --name ${AZURE_REGISTRY_ADDRESS} \
+                            --repository ${APP_NAME} --orderby time_desc --output tsv ${imageFilter}
+                            '''
+                        ).trim()
+                    } catch(Exception e) {
+                        error(
+                            "Are you sure that repository contains images matching following filter: ${imageFilter}"
+                        )
+                    }
                     timeout(time: 5, unit: 'MINUTES') {
                         env.SELECTED_TAG = input(
                             message: 'Select image to deploy',
