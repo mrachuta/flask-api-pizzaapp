@@ -1,8 +1,8 @@
-@Library('jenkins-shared-libs@development') _
+@Library('jenkins-shared-libs') _
 
 pipeline {
     agent {
-        label 'azure-docker'
+        label 'azure'
     }
     options {
         buildDiscarder(
@@ -18,10 +18,10 @@ pipeline {
         ansiColor('xterm')
     }
     environment {
-        PATH = "$PATH:$HOME/.local/bin"
+        CRANE_HOME = tool(name: 'crane_default', type: 'com.cloudbees.jenkins.plugins.customtools.CustomTool')
+        PATH = "$PATH:$HOME/.local/bin:$CRANE_HOME"
         APP_NAME = 'flask-api-pizzaapp'
-        AZURE_SP = credentials('azure-aks-testcluster-service-principal')
-        AZURE_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
+        AZURE_SP = credentials('azure-sp')
     }
     parameters {
         choice(
@@ -57,12 +57,13 @@ pipeline {
                             break;
                         case 'uat-env':
                             dbCredentialsId = 'flask-api-pizzaapp-database-uat-env'
-                            imageFilter = " | grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'"
+                            imageFilter = '| grep \'[0-9]\\+.[0-9]\\+.[0-9]\\+\''
                             break;
                         default:
                             error('Unknow environment!')
                             break;
                     }
+                    // Exposing multiple variables like AZURE_SUBSCRIPTION_ID etc.
                     exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing other variables...'
                     env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
@@ -78,13 +79,19 @@ pipeline {
         stage('Get Docker image') {
             steps {
                 script {
-                    def imageTags = sh(
-                        returnStdout: true,
-                        script: """
-                        az acr repository show-tags --name ${env.AZURE_REGISTRY_ADDRESS} \
-                        --repository ${env.APP_NAME} --orderby time_desc --output tsv ${imageFilter}
-                        """
-                    ).trim()
+                    try {
+                        imageTags = sh(
+                            returnStdout: true,
+                            script: """
+                            az acr repository show-tags --name ${env.AZURE_REGISTRY_ADDRESS} \
+                            --repository ${env.APP_NAME} --orderby time_desc --output tsv ${imageFilter}
+                            """
+                        ).trim()
+                    } catch(Exception e) {
+                        error(
+                            "Are you sure that repository contains images matching following filter: ${imageFilter}"
+                        )
+                    }
                     timeout(time: 5, unit: 'MINUTES') {
                         env.SELECTED_TAG = input(
                             message: 'Select image to deploy',
@@ -99,10 +106,12 @@ pipeline {
                     }
                     echo "Image tag selected to deploy: ${env.SELECTED_TAG}"
                     sh '''
-                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
-                    --output tsv --query accessToken | \
-                    docker login $AZURE_REGISTRY_ADDRESS --username $AZURE_REGISTRY_USR --password-stdin
-                    docker pull ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
+                    set +x
+                    echo $AZURE_SP_PSW > azcr.psw
+                    set -x
+                    cat azcr.psw | crane auth login $AZURE_REGISTRY_ADDRESS \
+                    --username $AZURE_SP_USR --password-stdin
+                    rm azcr.psw
                     '''
                 }
             }
@@ -111,14 +120,15 @@ pipeline {
             steps {
                 script {
                     echo "Verifying if release is conditional..."
-                    imageConditionalRelease = sh(
-                        returnStdout: true,
-                        script: '''
-                        docker inspect --format '{{ index .Config.Labels "CONDITIONAL_RELEASE" }}' \
-                        ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
-                        '''
-                    ).trim()
-                    if (imageConditionalRelease.toBoolean()) {
+                    imageDataJson = readJSON(
+                        text: sh(
+                            script: 'crane config ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}',
+                            returnStdout: true
+                        ).trim(),
+                        returnPojo: true
+                    )
+                    isReleaseConditional = imageDataJson.config.Labels.CONDITIONAL_RELEASE ?: 'false'
+                    if ((isReleaseConditional).toBoolean()) {
                         echo "Image contains CONDITIONAL_RELEASE flag, requesting user input..."
                         def labelsMap = [
                             "CONDITIONAL_REL_ACCEPTED_BY": null,
@@ -127,13 +137,7 @@ pipeline {
                             "SONAR_QG_STATUS": null
                         ]
                         for (i in labelsMap) {
-                            conditionResult = sh(
-                                returnStdout: true,
-                                script: """
-                                docker inspect --format "{{ index .Config.Labels "'"${i.key}"'" }}" \
-                                ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
-                                """
-                            ).trim()
+                            conditionResult = imageDataJson.config.Labels.(i.key)
                             labelsMap."${i.key}" = "${conditionResult}"
                         }
                         operatorInput = input(

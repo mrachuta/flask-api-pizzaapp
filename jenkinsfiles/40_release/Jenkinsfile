@@ -1,13 +1,8 @@
-@Library('jenkins-shared-libs@development') _
-
-// Set by default that release meets the requirements
-def releaseReqMeet = true
-// Set by default that it's not a conditional release
-def conditionalRelease = false
+@Library('jenkins-shared-libs') _
 
 pipeline {
     agent {
-        label 'azure-docker'
+        label 'azure'
     }
     options {
         buildDiscarder(
@@ -24,16 +19,20 @@ pipeline {
         skipDefaultCheckout()
     }
     environment {
-        PATH = "$PATH:$HOME/.local/bin"
+        CRANE_HOME = tool(name: 'crane_default', type: 'com.cloudbees.jenkins.plugins.customtools.CustomTool')
+        PATH = "$PATH:$HOME/.local/bin:$CRANE_HOME"
         APP_NAME = 'flask-api-pizzaapp'
         TARGET_ENV = 'uat-env'
-        AZURE_SP = credentials('azure-aks-testcluster-service-principal')
-        AZURE_REGISTRY_USR = '00000000-0000-0000-0000-000000000000'
+        AZURE_SP = credentials('azure-sp')
     }
     stages {
         stage('Prepare variables') {
             steps {
                 script {
+                    // Set by default that release meets the requirements
+                    releaseReqMeet = true
+                    // Set by default that it's not a conditional release
+                    conditionalRelease = false
                     env.GIT_BRANCH = scm.branches[0].name
                     env.GIT_URL = scm.userRemoteConfigs[0].url
                     dbCredentialsId = 'flask-api-pizzaapp-database-uat-env'
@@ -49,6 +48,7 @@ pipeline {
                     if (!(env.GIT_BRANCH == 'development')) {
                         error('You can use this pipeline only from development branch!')
                     }
+                    // Exposing multiple variables like AZURE_SUBSCRIPTION_ID etc.
                     exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing other variables...'
                     env.INGRESS_HOST = "${env.APP_NAME}-${env.TARGET_ENV}.${env.AZURE_INGRESS_DOMAIN}"
@@ -64,14 +64,20 @@ pipeline {
         stage('Select image to release') {
             steps {
                 script {
-                    def imageTags = sh(
-                        returnStdout: true,
-                        script: '''
-                        az acr repository show-tags --name ${AZURE_REGISTRY_ADDRESS} \
-                        --repository ${APP_NAME} --orderby time_desc --output tsv | \
-                        grep '^development-[0-9]\\+$'
-                        '''
-                    ).trim()
+                    try {
+                        imageFilter = '| grep \'^development-[0-9]\\+$\''
+                        imageTags = sh(
+                            returnStdout: true,
+                            script: """
+                            az acr repository show-tags --name ${env.AZURE_REGISTRY_ADDRESS} \
+                            --repository ${env.APP_NAME} --orderby time_desc --output tsv ${imageFilter}
+                            """
+                        ).trim()
+                    } catch(Exception e) {
+                        error(
+                            "Are you sure that repository contains images matching following filter: ${imageFilter}"
+                        )
+                    }
                     timeout(time: 5, unit: 'MINUTES') {
                         env.SELECTED_TAG = input(
                             message: 'Select image to create release',
@@ -87,24 +93,27 @@ pipeline {
                     }
                     echo "Image tag selected to create release: ${env.SELECTED_TAG}"
                     sh '''
-                     az acr login --name $AZURE_REGISTRY_ADDRESS --expose-token \
-                    --output tsv --query accessToken | \
-                    docker login $AZURE_REGISTRY_ADDRESS --username $AZURE_REGISTRY_USR --password-stdin
-                    docker pull ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
+                    set +x
+                    echo $AZURE_SP_PSW > azcr.psw
+                    set -x
+                    cat azcr.psw | crane auth login $AZURE_REGISTRY_ADDRESS \
+                    --username $AZURE_SP_USR --password-stdin
+                    rm azcr.psw
                     '''
+                    imageDataJson = readJSON(
+                        text: sh(
+                            script: 'crane config ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}',
+                            returnStdout: true
+                        ).trim(),
+                        returnPojo: true
+                    )
                 }
             }
         }
-        stage('Create new tag') {
+        stage('Define version') {
             steps {
                 script {
-                    env.IMAGE_COMMIT_ID = sh(
-                        returnStdout: true,
-                        script: '''
-                        docker inspect --format '{{ index .Config.Labels "COMMIT_ID" }}' \
-                        ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
-                        '''
-                    ).trim()
+                    env.IMAGE_COMMIT_ID = imageDataJson.config.Labels.COMMIT_ID
                     def labelsMap = [
                         "LEAKED_SECRETS_CHECK": null,
                         "DEPENDENCY_SECURITY_CHECK": null,
@@ -113,13 +122,7 @@ pipeline {
                     // Check if each image tag value equals "OK"
                     for (i in labelsMap) {
                         echo "Verify if image meets the condition ${i.key}..."
-                        conditionResult = sh(
-                            returnStdout: true,
-                            script: """
-                            docker inspect --format "{{ index .Config.Labels "'"${i.key}"'" }}" \
-                            ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}
-                            """
-                        ).trim()
+                        conditionResult = imageDataJson.config.Labels.(i.key)
                         if (conditionResult == 'OK') {
                             echo "--> ${i.key} PASSED!"
                             releaseReqMeet = true
@@ -141,7 +144,7 @@ pipeline {
                                     name: 'conditionalAcceptance',
                                     defaultValue: false,
                                     description: 'One or more of release conditions are not meet.\n\n' +
-                                    "${tagMap}\n\n" +
+                                    "${labelsMap}\n\n" +
                                     'Do you want to proceed with conditional release?'
                                 )
                             ],
@@ -223,32 +226,16 @@ pipeline {
                     if (gitRepoTags.contains(env.NEW_RELEASE_TAG)) {
                         error("Tag ${env.NEW_RELEASE_TAG} already exists!")
                     }
-                    echo 'Creating git tag...'
+                    echo 'Creating git tag locally...'
                     sh '''
                     git config --global user.email "jenkins-bot@thinkbox.pl"
                     git config --global user.name "Jenkins Bot"
                     git tag -a ${NEW_RELEASE_TAG} ${IMAGE_COMMIT_ID} -m "Version ${NEW_RELEASE_TAG}"
                     '''
-                    echo 'Tagging docker image...'
-                    if (conditionalRelease && releaseReqMeet) {
-                        // Took from SO: https://stackoverflow.com/a/54598281
-                        echo 'Rebuilding image to add new labels because of conditional release'
-                        sh '''
-                        echo "FROM ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}" | \
-                        docker build --label CONDITIONAL_RELEASE="true" \
-                        --label CONDITIONAL_REL_ACCEPTED_BY=${ACCEPTED_BY} \
-                        -t "${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}" -
-                        '''
-                    } else {
-                        sh '''
-                        docker tag ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG} \
-                        ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}
-                        '''
-                    }
                 }
             }
         }
-        stage('Promote image') {
+        stage('Release version') {
             steps {
                 script {
                     withCredentials([
@@ -261,8 +248,19 @@ pipeline {
                         try {
                             echo 'Pushing git tag to repository...'
                             sh 'git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_URL#https://} --tags'
-                            echo 'Pushing tagged image to registry...'
-                            sh 'docker push ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG}'
+                            echo 'Tagging docker image...'
+                            sh '''
+                            crane tag ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG} ${NEW_RELEASE_TAG}
+                            '''                    
+                            if (conditionalRelease && releaseReqMeet) {
+                                // Took from SO: https://stackoverflow.com/a/54598281
+                                echo 'Modify image to add new labels because of conditional release'
+                                sh '''
+                                crane mutate ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG} \
+                                --label CONDITIONAL_RELEASE="true" \
+                                --label CONDITIONAL_REL_ACCEPTED_BY=${ACCEPTED_BY} 
+                                '''
+                            }
                         } catch(err) {
                             echo "Following error occured: ${err}"
                             echo 'Reverting changes...'

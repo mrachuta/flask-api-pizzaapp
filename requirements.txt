@@ -26,4 +26,4 @@ pytest-cov==4.1.0
 SQLAlchemy==2.0.22
 tomlkit==0.12.1
 typing_extensions==4.8.0
-Werkzeug==3.0.0
+Werkzeug==3.0.1

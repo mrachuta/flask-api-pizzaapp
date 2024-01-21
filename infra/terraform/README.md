@@ -17,6 +17,10 @@ aks_name              = "fapaaks01"
 aks_resources_rg_name = "flaskapipizzaap-rg-fapaaks01"
 aks_lb_sku            = "basic"
 ```
+* to integrate ACR with AKS you need existing service prinicipal (SP) with following roles granted:
+  *  AcrDelete
+  *  AcrPull
+  *  AcrPush
 
 ## Usage
 
