@@ -127,7 +127,8 @@ pipeline {
                         ).trim(),
                         returnPojo: true
                     )
-                    if ((imageDataJson.config.Labels.CONDITIONAL_RELEASE).toBoolean()) {
+                    isReleaseConditional = imageDataJson.config.Labels.CONDITIONAL_RELEASE ?: 'false'
+                    if ((isReleaseConditional).toBoolean()) {
                         echo "Image contains CONDITIONAL_RELEASE flag, requesting user input..."
                         def labelsMap = [
                             "CONDITIONAL_REL_ACCEPTED_BY": null,
