@@ -71,13 +71,13 @@ pipeline {
             steps {
                 script {
                     try {
-                        imageFilter = "| grep '[0-9]\\+.[0-9]\\+.[0-9]\\+'"
+                        imageFilter = '| grep \'[0-9]\\+.[0-9]\\+.[0-9]\\+\''
                         imageTags = sh(
                             returnStdout: true,
-                            script: '''
-                            az acr repository show-tags --name ${AZURE_REGISTRY_ADDRESS} \
-                            --repository ${APP_NAME} --orderby time_desc --output tsv ${imageFilter}
-                            '''
+                            script: """
+                            az acr repository show-tags --name ${env.AZURE_REGISTRY_ADDRESS} \
+                            --repository ${env.APP_NAME} --orderby time_desc --output tsv ${imageFilter}
+                            """
                         ).trim()
                     } catch(Exception e) {
                         error(
