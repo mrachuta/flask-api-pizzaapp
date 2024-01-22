@@ -1,17 +1,18 @@
+---
 block-list-secret-scan: []
 directory:
-- ./infra/terraform/
+  - ./infra/terraform/
 download-external-modules: false
 evaluate-variables: true
 external-modules-download-path: .external_modules
 framework:
-- terraform
+  - terraform
 hard-fail-on:
-- HIGH
+  - HIGH
 mask: []
 output:
-- cli
-- junitxml
+  - cli
+  - junitxml
 output-file-path: console,checkov-results-terraform.xml
 quiet: true
 secrets-history-timeout: 12h

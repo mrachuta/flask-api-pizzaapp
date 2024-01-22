@@ -1,11 +1,20 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
-import ovh
+
+"""
+Module providing interaction with OVH api
+"""
+
 import json
 import argparse
-
+import ovh
 
 class OvhApi:
+
+    """
+    Class constructor
+    """
+
     def __init__(self, zone=None, subdomain=None, record=None):
         # Took configuration from ovh.conf file or env variables
         self.client = ovh.Client()
@@ -14,7 +23,12 @@ class OvhApi:
         self.record = record
         self.domain_id = None
 
-    def getDomainId(self):
+    def get_domain_id(self):
+
+        """
+        Get id of particular domain from OVH
+        """
+
         result = self.client.get(
             f"/domain/zone/{self.zone}/record",
             fieldType=self.record,
@@ -28,16 +42,26 @@ class OvhApi:
             print("Domain not found!")
             raise
 
-    def alterDomainById(self, target):
-        result = self.client.put(
+    def alter_domain_by_id(self, target):
+
+        """
+        Change target record of domain
+        """
+
+        self.client.put(
             f"/domain/zone/{self.zone}/record/{self.domain_id}",
             subDomain=self.subdomain,
             target=target,
         )
         print("Domain altered!")
 
-    def refreshZone(self):
-        result = self.client.post(f"/domain/zone/{self.zone}/refresh")
+    def refresh_zone(self):
+
+        """
+        Refresh zone settings
+        """
+
+        self.client.post(f"/domain/zone/{self.zone}/refresh")
         print("Zone refreshed!")
 
 
@@ -57,6 +81,6 @@ if __name__ == "__main__":
         subdomain=cliargs.subdomain,
         record=cliargs.record,
     )
-    api.getDomainId()
-    api.alterDomainById(cliargs.target)
-    api.refreshZone()
+    api.get_domain_id()
+    api.alter_domain_by_id(cliargs.target)
+    api.refresh_zone()

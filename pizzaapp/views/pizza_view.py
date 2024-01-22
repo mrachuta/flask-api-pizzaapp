@@ -34,9 +34,8 @@ def create_pizza():
         message = {"error": "Pizza with this name already exists"}
         return custom_response(message, 400)
 
-    else:
-        message = {"message": "Pizza created", "id": pizza.id}
-        return custom_response(message, 201)
+    message = {"message": "Pizza created", "id": pizza.id}
+    return custom_response(message, 201)
 
 
 @pizza_api.route("/", methods=["GET"])
@@ -100,10 +99,9 @@ def update_pizza(pizza_id):
         message = {"error": "Pizza with this id not exists"}
         return custom_response(message, 404)
 
-    else:
-        message = {"message": "Pizza updated", "id": pizza.id}
-        # In case of response 204, message is not displayed
-        return custom_response(message, 200)
+    message = {"message": "Pizza updated", "id": pizza.id}
+    # In case of response 204, message is not displayed
+    return custom_response(message, 200)
 
 
 @pizza_api.route("/<int:pizza_id>", methods=["DELETE"])
@@ -121,10 +119,9 @@ def delete_pizza(pizza_id):
         message = {"error": "Pizza with this id not exists"}
         return custom_response(message, 404)
 
-    else:
-        message = {"message": "Pizza deleted", "id": pizza.id}
-        # In case of response 204, message is not displayed
-        return custom_response(message, 200)
+    message = {"message": "Pizza deleted", "id": pizza.id}
+    # In case of response 204, message is not displayed
+    return custom_response(message, 200)
 
 
 def custom_response(res, status_code):

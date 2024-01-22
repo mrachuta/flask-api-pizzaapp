@@ -100,7 +100,7 @@ class PizzaModel(db.Model):
         db.session.delete(self)
         db.session.commit()
 
-    def __repr(self):
+    def _repr(self):
         return f"<name {self.name}>"
 
 
