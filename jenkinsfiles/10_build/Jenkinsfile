@@ -287,6 +287,7 @@ pipeline {
                         --timeout 10m \
                         --atomic \
                         --namespace "$TARGET_ENV" \
+                        --values ./helm/flask-api-pizzaapp/values.yaml \
                         --values ./helm/environments/${TARGET_ENV}.yaml \
                         --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
                         --set image.tag="${TAG_NAME}" \

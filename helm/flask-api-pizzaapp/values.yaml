@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: ""
+  repository: nonexisting.example.repository
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: nonexistingtag
 
 imagePullSecrets: []
 nameOverride: ""
@@ -31,12 +31,12 @@ env:
 podAnnotations: {}
 
 podSecurityContext: {}
-  # fsGroup: 2000
 
 securityContext:
   allowPrivilegeEscalation: false
-  runAsUser: 20000
-  runAsNonRoot: true
+  # Not ready yet
+  #runAsUser: 20000
+  #runAsNonRoot: true
   seccompProfile:
     type: RuntimeDefault
 
@@ -47,14 +47,14 @@ service:
   port: 5000
 
 ingress:
-  enabled: true
-  className: "nginx"
+  enabled: false
+  className: nginx
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-staging
-  host: ""
+  host: fakehost.org
   tls:
-    enabled: true
-    secretName: "" 
+    enabled: false
+    secretName: fakehost-org-tls
 
 resources:
   limits:

@@ -11,3 +11,13 @@ env:
     FLASK_JWT_SECRET: "test123test123"
     ENV_DETAILED_NAME: "dev-env"
     BANNER_COLOR: "yellow"
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+  host: "" # Delivered by cli args
+  tls:
+    enabled: true
+    secretName: "" # Delivered by cli args

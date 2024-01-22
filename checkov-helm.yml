@@ -28,4 +28,5 @@ skip-path:
 soft-fail: true
 summary-position: top
 var-file:
+  - ./helm/flask-api-pizzaapp/values.yaml
   - ./helm/environments/dev-env.yaml
