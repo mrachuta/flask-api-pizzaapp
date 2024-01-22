@@ -11,7 +11,6 @@ from . import db
 
 
 def must_not_be_blank(data):
-
     """
     Validate if field is not empty
     """
@@ -37,7 +36,6 @@ class PizzaModel(db.Model):
 
     # Class constructor
     def __init__(self, data):
-
         """
         Class constructor
         """
@@ -50,7 +48,6 @@ class PizzaModel(db.Model):
 
     @staticmethod
     def get_all_pizzas():
-
         """
         Return all available pizzas
         """
@@ -59,12 +56,11 @@ class PizzaModel(db.Model):
 
     @staticmethod
     def get_pizza_by_id(pizza_id):
-
         """
         Return specific pizza by id
         """
 
-        return PizzaModel.query.get(pizza_id)
+        return PizzaModel.session.get(pizza_id)
 
     # Not necessary yet
     # @staticmethod
@@ -72,7 +68,6 @@ class PizzaModel(db.Model):
     #     return PizzaModel.query.filter_by(name=name)
 
     def save(self):
-
         """
         Save data
         """
@@ -81,7 +76,6 @@ class PizzaModel(db.Model):
         db.session.commit()
 
     def update(self, data):
-
         """
         Modify data
         """
@@ -92,7 +86,6 @@ class PizzaModel(db.Model):
         db.session.commit()
 
     def delete(self):
-
         """
         Delete data
         """
@@ -112,7 +105,9 @@ class PizzaSchema(Schema):
 
     id = fields.Int(dump_only=True)
     # Validation here
-    name = fields.Str(required=True, unique=True, validate=must_not_be_blank)
-    price = fields.Float(required=True, validate=must_not_be_blank)
-    created_at = fields.DateTime(dump_only=True)
-    modified_at = fields.DateTime(dump_only=True)
+    name = fields.Str(
+        metadata={"required": True, "unique": True, "validate": "must_not_be_blank"}
+    )
+    price = fields.Float(metadata={"required": True, "validate": "must_not_be_blank"})
+    created_at = fields.DateTime(metadata={"dump_only": True})
+    modified_at = fields.DateTime(metadata={"dump_only": True})

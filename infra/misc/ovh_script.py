@@ -24,7 +24,6 @@ class OvhApi:
         self.domain_id = None
 
     def get_domain_id(self):
-
         """
         Get id of particular domain from OVH
         """
@@ -38,12 +37,11 @@ class OvhApi:
         # Return first element
         try:
             setattr(self, "domain_id", json.dumps(result[0], indent=4))
-        except IndexError as err:
+        except IndexError:
             print("Domain not found!")
             raise
 
     def alter_domain_by_id(self, target):
-
         """
         Change target record of domain
         """
@@ -56,7 +54,6 @@ class OvhApi:
         print("Domain altered!")
 
     def refresh_zone(self):
-
         """
         Refresh zone settings
         """

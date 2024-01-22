@@ -4,6 +4,7 @@ This is a defitinion of possible configuration profile
 
 import os
 
+
 class Local:
 
     """
@@ -15,6 +16,7 @@ class Local:
     SQLALCHEMY_DATABASE_URI = "sqlite:///../dev.sqlite3"
     JWT_SECRET_KEY = "testjwtsecret123"
     SQLALCHEMY_TRACK_MODIFICATIONS = True
+
 
 class Development:
 
@@ -33,6 +35,7 @@ class Development:
 {os.environ.get('FLASK_DB_NAME')}"
     JWT_SECRET_KEY = os.environ.get("FLASK_JWT_SECRET")
     SQLALCHEMY_TRACK_MODIFICATIONS = True
+
 
 class Production:
 

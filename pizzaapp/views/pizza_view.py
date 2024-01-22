@@ -13,7 +13,6 @@ pizza_schema = PizzaSchema()
 
 @pizza_api.route("/", methods=["POST"])
 def create_pizza():
-
     """
     Create a Pizza
     """
@@ -40,7 +39,6 @@ def create_pizza():
 
 @pizza_api.route("/", methods=["GET"])
 def get_all_pizzas():
-
     """
     Get all pizzas
     """
@@ -57,7 +55,6 @@ def get_all_pizzas():
 
 @pizza_api.route("/<int:pizza_id>", methods=["GET"])
 def get_single_pizza(pizza_id):
-
     """
     Get a single pizza
     """
@@ -75,7 +72,6 @@ def get_single_pizza(pizza_id):
 
 @pizza_api.route("/<int:pizza_id>", methods=["PATCH"])
 def update_pizza(pizza_id):
-
     """
     Update a pizza
     """
@@ -106,7 +102,6 @@ def update_pizza(pizza_id):
 
 @pizza_api.route("/<int:pizza_id>", methods=["DELETE"])
 def delete_pizza(pizza_id):
-
     """
     Delete a pizza
     """
@@ -125,7 +120,6 @@ def delete_pizza(pizza_id):
 
 
 def custom_response(res, status_code):
-
     """
     Custom Response
     """
