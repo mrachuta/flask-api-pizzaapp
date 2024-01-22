@@ -20,6 +20,7 @@ spec:
       labels:
         {{- include "flask-api-pizzaapp-chart.selectorLabels" . | nindent 8 }}
     spec:
+      automountServiceAccountToken: {{ ne .Values.automountServiceAccountToken false }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
