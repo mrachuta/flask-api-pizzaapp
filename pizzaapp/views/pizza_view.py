@@ -10,6 +10,10 @@ from ..models.pizza_model import PizzaModel, PizzaSchema
 pizza_api = Blueprint("pizza", __name__)
 pizza_schema = PizzaSchema()
 
+already_exists_msg = 'Pizza with this name already exists'
+not_exists_msg = 'Pizza with this id does not exists'
+blank_field_msg = 'Name and/or price can\'t be blank'
+
 
 @pizza_api.route("/", methods=["POST"])
 def create_pizza():
@@ -26,11 +30,11 @@ def create_pizza():
         pizza.save()
 
     except ValidationError:
-        message = {"error": "Name and/or price can't be blank"}
+        message = {"error": blank_field_msg}
         return custom_response(message, 400)
 
     except IntegrityError:
-        message = {"error": "Pizza with this name already exists"}
+        message = {"error": already_exists_msg}
         return custom_response(message, 400)
 
     message = {"message": "Pizza created", "id": pizza.id}
@@ -62,7 +66,7 @@ def get_single_pizza(pizza_id):
     pizza = PizzaModel.get_pizza_by_id(pizza_id)
 
     if not pizza:
-        message = {"error": "Pizza with this id not exists"}
+        message = {"error": not_exists_msg}
         return custom_response(message, 404)
 
     serialized_pizza = pizza_schema.dump(pizza)
@@ -84,15 +88,15 @@ def update_pizza(pizza_id):
         pizza.update(data)
 
     except ValidationError:
-        message = {"error": "Name and/or price can't be blank"}
+        message = {"error": blank_field_msg}
         return custom_response(message, 400)
 
     except IntegrityError:
-        message = {"error": "Pizza with this name already exists"}
+        message = {"error": already_exists_msg}
         return custom_response(message, 400)
 
     except AttributeError:
-        message = {"error": "Pizza with this id not exists"}
+        message = {"error": not_exists_msg}
         return custom_response(message, 404)
 
     message = {"message": "Pizza updated", "id": pizza.id}
@@ -111,7 +115,7 @@ def delete_pizza(pizza_id):
         pizza.delete()
 
     except AttributeError:
-        message = {"error": "Pizza with this id not exists"}
+        message = {"error": not_exists_msg}
         return custom_response(message, 404)
 
     message = {"message": "Pizza deleted", "id": pizza.id}
