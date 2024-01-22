@@ -60,7 +60,7 @@ class PizzaModel(db.Model):
         Return specific pizza by id
         """
 
-        return PizzaModel.session.get(pizza_id)
+        return PizzaModel.query.session.get(PizzaModel, pizza_id)
 
     # Not necessary yet
     # @staticmethod
@@ -105,9 +105,7 @@ class PizzaSchema(Schema):
 
     id = fields.Int(dump_only=True)
     # Validation here
-    name = fields.Str(
-        metadata={"required": True, "unique": True, "validate": "must_not_be_blank"}
-    )
-    price = fields.Float(metadata={"required": True, "validate": "must_not_be_blank"})
-    created_at = fields.DateTime(metadata={"dump_only": True})
-    modified_at = fields.DateTime(metadata={"dump_only": True})
+    name = fields.Str(required=True, validate=must_not_be_blank)
+    price = fields.Float(required=True, validate=must_not_be_blank)
+    created_at = fields.DateTime(dump_only=True)
+    modified_at = fields.DateTime(dump_only=True)

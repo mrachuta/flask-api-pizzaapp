@@ -103,6 +103,8 @@ pipeline {
                 */ 
                 sh 'sed -i \'s/psycopg2/psycopg2-binary/g\' requirements-dev.txt'
                 sh 'pip install -r requirements-dev.txt'
+                // Install requirements for ovh_script.py - lint purposes
+                sh 'pip install -r infra/misc/requirements.txt'
             }
         }
         stage('Run leaked-secrets check') {
