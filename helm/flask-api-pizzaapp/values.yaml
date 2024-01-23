@@ -34,11 +34,13 @@ podSecurityContext: {}
 
 securityContext:
   allowPrivilegeEscalation: false
-  # Not ready yet
-  #runAsUser: 20000
-  #runAsNonRoot: true
+  runAsUser: 1001
+  runAsNonRoot: true
   seccompProfile:
     type: RuntimeDefault
+  capabilities:
+    drop:
+      - ALL
 
 automountServiceAccountToken: false
 
