@@ -1,6 +1,3 @@
-imagePullSecrets:
- - name: acr-registry-secret-uat-env
-
 env:
   configMap:
     FLASK_ENV: "development"
@@ -18,6 +15,7 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-staging
   host: "" # Delivered by cli args
+  path: /
+  pathType: ImplementationSpecific
   tls:
     enabled: true
-    secretName: "" # Delivered by cli args

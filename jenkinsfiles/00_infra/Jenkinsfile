@@ -207,16 +207,17 @@ pipeline {
                     --name $AZURE_KUBE_CLUSTER_NAME --admin
                     '''
                     dir('infra/kubernetes') {
-                        ['dev-env', 'uat-env', 'prod-env'].each {
-                            sh """
-                            kubectl create secret docker-registry acr-registry-secret-${it} \
-                            --namespace ${it} \
-                            --docker-server=$AZURE_REGISTRY_ADDRESS \
-                            --docker-username=$AZURE_SP_USR \
-                            --docker-password=$AZURE_SP_PSW \
-                            --dry-run=client -o yaml > acr-registry-secret-${it}.yaml
-                            """
-                        }
+                        // // Uncomment for bare-metal k8s
+                        // ['dev-env', 'uat-env', 'prod-env'].each {
+                        //     sh """
+                        //     kubectl create secret docker-registry acr-registry-secret-${it} \
+                        //     --namespace ${it} \
+                        //     --docker-server=$AZURE_REGISTRY_ADDRESS \
+                        //     --docker-username=$AZURE_SP_USR \
+                        //     --docker-password=$AZURE_SP_PSW \
+                        //     --dry-run=client -o yaml > acr-registry-secret-${it}.yaml
+                        //     """
+                        // }
                         sh 'chmod +x ./provision-k8s-resources.sh'
                         sh './provision-k8s-resources.sh | tee -a script.log'
                         loadBalancerIp = readFile(file: 'script.log') =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/

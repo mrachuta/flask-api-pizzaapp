@@ -16,10 +16,11 @@ sleep 30
 echo 'Applying cert-manager clusterissuer'
 kubectl apply -f ./letsencrypt-staging-clusterissuer.yaml
 
-echo 'Applying secrets'
-kubectl apply -f ./acr-registry-secret-dev-env.yaml 
-kubectl apply -f ./acr-registry-secret-uat-env.yaml
-kubectl apply -f ./acr-registry-secret-prod-env.yaml
+# # Uncomment for bare-metal k8s
+# echo 'Applying secrets'
+# kubectl apply -f ./acr-registry-secret-dev-env.yaml 
+# kubectl apply -f ./acr-registry-secret-uat-env.yaml
+# kubectl apply -f ./acr-registry-secret-prod-env.yaml
 
 echo "Applying ingress-nginx version ${NGINX_INGRESS_VER}"
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-${NGINX_INGRESS_VER}/deploy/static/provider/cloud/deploy.yaml

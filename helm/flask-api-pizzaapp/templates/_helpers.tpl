@@ -49,3 +49,14 @@ Selector labels
 app.kubernetes.io/name: {{ include "flask-api-pizzaapp-chart.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Create the name of TLS secret for ingress
+*/}}
+{{- define "flask-api-pizzaapp-chart.tlsSecretName" -}}
+{{- if .Values.ingress.tls.enabled }}
+{{- default (printf "%s-cert" .Values.ingress.host | replace "." "-") .Values.ingress.tls.secretName }}
+{{- else }}
+{{- print "" }}
+{{- end }}
+{{- end }}
