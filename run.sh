@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 # Skip DB migration if variable FLASK_SKIP_MIGRATION is set
 if [[ -z "${FLASK_SKIP_DB_MIGRATION}" ]]; then

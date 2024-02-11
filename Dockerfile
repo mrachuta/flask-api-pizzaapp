@@ -19,4 +19,7 @@ WORKDIR /app/
 RUN pip install -r requirements.txt && \
     chmod +x run.sh
 
+# Migrate in future to gunicorn 
+# instead of using flask development server
+
 CMD ["./run.sh"]
