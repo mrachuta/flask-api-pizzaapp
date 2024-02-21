@@ -4,9 +4,9 @@ module "aks_cheap_cluster" {
   existing_rg                = var.existing_rg
   provision_acr              = var.provision_acr
   provision_aks              = var.provision_aks
-  acr_name                   = "mzraacr01"
+  acr_name                   = var.acr_name
   acr_grant_pull_role_to_aks = true
-  aks_name                   = "mzraaks01"
+  aks_name                   = var.aks_name
   aks_resources_rg_name      = var.aks_resources_rg_name
   aks_lb_sku                 = "basic"
   nginx_ingress_additional_params = {
