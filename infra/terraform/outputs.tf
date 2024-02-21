@@ -11,5 +11,5 @@ output "aks_cluster_name" {
 }
 
 output "aks_loadbalancer_ip" {
- value = module.aks_cheap_cluster.aks_loadbalancer_ip
+  value = module.aks_cheap_cluster.aks_loadbalancer_ip
 }
