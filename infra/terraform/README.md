@@ -8,19 +8,9 @@ Terraform configuration to create flask-api-pizzaapp stack
 ```
 az group create --name flaskapipizzaap-rg --location northcentralus
 ```
-* vars file created with following content
-```
-$ cat flaskapipizzaap-rg.auto.tfvars
-existing_rg           = "flaskapipizzaap-rg"
-acr_name              = "fapaacr01"
-aks_name              = "fapaaks01"
-aks_resources_rg_name = "flaskapipizzaap-rg-fapaaks01"
-aks_lb_sku            = "basic"
-```
-* to integrate ACR with AKS you need existing service prinicipal (SP) with following roles granted:
-  *  AcrDelete
-  *  AcrPull
-  *  AcrPush
+* main.tf file with configured variables
+  * to get all variables check module's [variables.tf](https://github.com/mrachuta/terraform-resources/blob/master/modules/azure-aks-cheap-cluster-module/variables.tf) file
+* module is taking care about integration of AKS with ACR (it grants AcrPull role to AKS Managed Identity)
 
 ## Usage
 
