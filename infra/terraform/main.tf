@@ -1,6 +1,5 @@
 module "aks_cheap_cluster" {
-  #source = "github.com/mrachuta/terraform-resources.git//modules/azure-aks-cheap-cluster-module?ref=feature%2Fadd-aks-module"
-  source = "/mnt/c/Users/mati/linux/development/terraform/terraform-resources/modules/azure-aks-cheap-cluster-module"
+  source = "github.com/mrachuta/terraform-resources.git//modules/azure-aks-cheap-cluster-module?ref=feature%2Fadd-aks-module"
 
   existing_rg                = "mzra-rg"
   provision_acr              = true
