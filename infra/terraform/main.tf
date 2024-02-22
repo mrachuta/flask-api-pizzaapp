@@ -1,5 +1,5 @@
 module "aks_cheap_cluster" {
-  source = "github.com/mrachuta/terraform-resources.git//modules/azure-aks-cheap-cluster-module?ref=feature%2Fadd-aks-module"
+  source = "github.com/mrachuta/terraform-resources.git//modules/azure-aks-cheap-cluster-module?ref=v1.3.0"
 
   existing_rg                = var.existing_rg
   provision_acr              = var.provision_acr
@@ -15,8 +15,8 @@ module "aks_cheap_cluster" {
   aks_scaling_details_default_node = {
     enabled       = true
     days          = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    start_time_HH = 07
-    start_time_MM = 00
+    start_time_HH = 10
+    start_time_MM = 30
     stop_time_HH  = 22
     stop_time_MM  = 30
     timezone      = "UTC"
