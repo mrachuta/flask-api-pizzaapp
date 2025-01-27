@@ -32,7 +32,7 @@ class Development:
 {os.environ.get('FLASK_DB_PASS')}@\
 {os.environ.get('FLASK_DB_HOST')}:\
 {os.environ.get('FLASK_DB_PORT')}/\
-{os.environ.get('FLASK_DB_NAME')}"
+{os.environ.get('FLASK_DB_NAME')}?sslmode=require"
     JWT_SECRET_KEY = os.environ.get("FLASK_JWT_SECRET")
     SQLALCHEMY_TRACK_MODIFICATIONS = True
 
@@ -51,7 +51,7 @@ class Production:
 {os.environ.get('FLASK_DB_PASS')}@\
 {os.environ.get('FLASK_DB_HOST')}:\
 {os.environ.get('FLASK_DB_PORT')}/\
-{os.environ.get('FLASK_DB_NAME')}"
+{os.environ.get('FLASK_DB_NAME')}?sslmode=require"
     JWT_SECRET_KEY = os.environ.get("FLASK_JWT_SECRET")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
