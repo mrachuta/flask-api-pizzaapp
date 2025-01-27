@@ -163,7 +163,7 @@ pipeline {
                     try {
                         sh '''
                         pip3 install safety
-                        safety check -r requirements.txt
+                        safety scan
                         '''
                         dependencySecurityCheck = 'OK'
                     } catch(Exception e) {
