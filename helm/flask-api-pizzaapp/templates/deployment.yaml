@@ -12,7 +12,6 @@ spec:
   selector:
     matchLabels:
       {{- include "flask-api-pizzaapp-chart.selectorLabels" . | nindent 6 }}
-      {{- include "flask-api-pizzaapp-chart.versionLabel" (list . .Values.image.tag) | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
