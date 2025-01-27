@@ -4,6 +4,7 @@ metadata:
   name: {{ include "flask-api-pizzaapp-chart.fullname" . }}
   labels:
     {{- include "flask-api-pizzaapp-chart.labels" . | nindent 4 }}
+    {{- include "flask-api-pizzaapp-chart.versionLabel" (list . .Values.image.tag) | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -19,7 +20,9 @@ spec:
       {{- end }}
       labels:
         {{- include "flask-api-pizzaapp-chart.selectorLabels" . | nindent 8 }}
+        {{- include "flask-api-pizzaapp-chart.versionLabel" (list . .Values.image.tag) | nindent 8 }}
     spec:
+      automountServiceAccountToken: {{ ne .Values.automountServiceAccountToken false }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

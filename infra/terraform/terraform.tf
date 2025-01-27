@@ -1,10 +1,11 @@
 # We strongly recommend using the required_providers block to set the
 # Azure Provider source and version being used
 terraform {
+  required_version = ">= 1.3"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">=3.63.0"
+      version = ">=4.10.0"
     }
   }
   backend "azurerm" {
@@ -13,11 +14,10 @@ terraform {
     container_name       = "terraform-remote-state"
     key                  = "terraform.tfstate"
   }
-  required_version = ">= 1.5.7"
 }
 
 # Configure the Microsoft Azure Provider
 provider "azurerm" {
-  skip_provider_registration = true
+  resource_provider_registrations = "none"
   features {}
 }

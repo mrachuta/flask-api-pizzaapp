@@ -2,7 +2,7 @@
 This is a defitinion of pizza object in database
 """
 
-import datetime
+from datetime import datetime, timezone
 from marshmallow import fields, Schema, ValidationError
 from . import db
 
@@ -11,7 +11,6 @@ from . import db
 
 
 def must_not_be_blank(data):
-
     """
     Validate if field is not empty
     """
@@ -21,7 +20,6 @@ def must_not_be_blank(data):
 
 
 class PizzaModel(db.Model):
-
     """
     Pizza Model
     """
@@ -37,7 +35,6 @@ class PizzaModel(db.Model):
 
     # Class constructor
     def __init__(self, data):
-
         """
         Class constructor
         """
@@ -45,12 +42,11 @@ class PizzaModel(db.Model):
         self.name = data.get("name")
         self.price = data.get("price")
         self.ingeridients = data.get("ingeridients")
-        self.created_at = datetime.datetime.utcnow()
-        self.modified_at = datetime.datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
+        self.modified_at = datetime.now(timezone.utc)
 
     @staticmethod
     def get_all_pizzas():
-
         """
         Return all available pizzas
         """
@@ -59,12 +55,11 @@ class PizzaModel(db.Model):
 
     @staticmethod
     def get_pizza_by_id(pizza_id):
-
         """
         Return specific pizza by id
         """
 
-        return PizzaModel.query.get(pizza_id)
+        return PizzaModel.query.session.get(PizzaModel, pizza_id)
 
     # Not necessary yet
     # @staticmethod
@@ -72,7 +67,6 @@ class PizzaModel(db.Model):
     #     return PizzaModel.query.filter_by(name=name)
 
     def save(self):
-
         """
         Save data
         """
@@ -81,18 +75,16 @@ class PizzaModel(db.Model):
         db.session.commit()
 
     def update(self, data):
-
         """
         Modify data
         """
 
         for key, item in data.items():
             setattr(self, key, item)
-        self.modified_at = datetime.datetime.utcnow()
+        self.modified_at = datetime.now(timezone.utc)
         db.session.commit()
 
     def delete(self):
-
         """
         Delete data
         """
@@ -100,19 +92,18 @@ class PizzaModel(db.Model):
         db.session.delete(self)
         db.session.commit()
 
-    def __repr(self):
+    def _repr(self):
         return f"<name {self.name}>"
 
 
 class PizzaSchema(Schema):
-
     """
     Pizza Schema
     """
 
     id = fields.Int(dump_only=True)
     # Validation here
-    name = fields.Str(required=True, unique=True, validate=must_not_be_blank)
+    name = fields.Str(required=True, validate=must_not_be_blank)
     price = fields.Float(required=True, validate=must_not_be_blank)
     created_at = fields.DateTime(dump_only=True)
     modified_at = fields.DateTime(dump_only=True)

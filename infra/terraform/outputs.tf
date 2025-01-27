@@ -1,11 +1,15 @@
 output "rg_id" {
-  value = data.azurerm_resource_group.rg.id
+  value = module.aks_cheap_cluster.rg_id
 }
 
 output "acr_address" {
-  value = var.provision_acr == true ? azurerm_container_registry.acr[0].login_server : null
+  value = module.aks_cheap_cluster.acr_address
 }
 
 output "aks_cluster_name" {
-  value = var.provision_aks == true ? azurerm_kubernetes_cluster.aks[0].name : null
+  value = module.aks_cheap_cluster.aks_cluster_name
+}
+
+output "aks_loadbalancer_ip" {
+  value = module.aks_cheap_cluster.aks_loadbalancer_ip
 }
