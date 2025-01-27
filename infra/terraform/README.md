@@ -6,7 +6,7 @@ Terraform configuration to create flask-api-pizzaapp stack
 
 * Existing resource group:
 ```
-az group create --name flaskapipizzaap-rg --location northcentralus
+az group create --name myrg01 --location northcentralus
 ```
 * vars file created
 ```
@@ -23,7 +23,7 @@ aks_name              = "myacr01"
 aks_resources_rg_name = "myrg01-myaks01"
 ```
 * if you want to adjust more parameters, take a look at [main.tf](./main.tf) and [variables.tf](https://github.com/mrachuta/terraform-resources/blob/master/modules/azure-aks-cheap-cluster-module/variables.tf)
-* moudule by default is integrating AKS with ACR by granting AcrPull role to AKS Managed Identity
+* module by default is integrating AKS with ACR by granting AcrPull role to AKS Managed Identity
 
 ## Usage
 

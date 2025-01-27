@@ -1,23 +1,19 @@
 ## General info
 
-Basic Kubernetes cluster setup to run flask-api-pizzaapp
+Basic Kubernetes cluster setup required to run flask-api-pizzaapp
 
 ## Requirements
 
-* Existing k8s cluster (example here: AKS)
+* Existing k8s cluster (example here: AKS). You can create cluster using terraform module in [terraform](../terraform) directory.
 
 ## Usage
 * Get cluster credentials
   ```
-  az aks get-credentials --resource-group myexistingrg01 --name myaks01 --admin
+  az aks get-credentials --resource-group myrg01 --name myaks01 --admin
   ```
 * Create namespaces:
   ```
   kubectl apply -f namespaces.yaml
-  ```
-* Deploy ingress-nginx:
-  ```
-  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
   ```
 * Deploy cert-manager:
   ```
