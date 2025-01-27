@@ -18,6 +18,7 @@ metadata:
   name: {{ $fullName }}
   labels:
     {{- include "flask-api-pizzaapp-chart.labels" . | nindent 4 }}
+    {{- include "flask-api-pizzaapp-chart.versionLabel" (list . .Values.image.tag) | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
