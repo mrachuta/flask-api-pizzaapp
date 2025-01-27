@@ -3,4 +3,4 @@ name: flask-api-pizzaapp
 description: A Helm chart for flask-api-pizzaapp
 type: application
 version: 1.4.0
-appVersion: "2.2.0"
+appVersion: "2.1.0"
