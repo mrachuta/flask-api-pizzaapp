@@ -1,13 +1,22 @@
-imagePullSecrets:
- - name: acr-registry-secret-uat-env
-
 env:
   configMap:
     FLASK_ENV: "development"
     FLASK_DB_TYPE: "postgresql"
-    FLASK_DB_HOST: "kandula.db.elephantsql.com"
+    FLASK_DB_HOST: "ep-long-frost-a8me8d2u-pooler.eastus2.azure.neon.tech"
     FLASK_DB_PORT: "5432"
-    FLASK_DB_NAME: "amquuyng"
+    FLASK_DB_NAME: "pizzaapp-uat"
+    # I know, I know...
     FLASK_JWT_SECRET: "uat123uat123"
     ENV_DETAILED_NAME: "uat-env"
     BANNER_COLOR: "blue"
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+  host: "" # Delivered by cli args
+  path: /
+  pathType: ImplementationSpecific
+  tls:
+    enabled: true

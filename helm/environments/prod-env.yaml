@@ -1,13 +1,22 @@
-imagePullSecrets:
- - name: acr-registry-secret-prod-env
-
 env:
   configMap:
     FLASK_ENV: "production"
     FLASK_DB_TYPE: "postgresql"
-    FLASK_DB_HOST: "kandula.db.elephantsql.com"
+    FLASK_DB_HOST: "ep-long-frost-a8me8d2u-pooler.eastus2.azure.neon.tech"
     FLASK_DB_PORT: "5432"
-    FLASK_DB_NAME: "bpzdoeiq"
+    FLASK_DB_NAME: "pizzaapp-prod"
+    # I know, I know...
     FLASK_JWT_SECRET: "prod123prod123"
     ENV_DETAILED_NAME: "prod-env"
     BANNER_COLOR: ""
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+  host: "" # Delivered by cli args
+  path: /
+  pathType: ImplementationSpecific
+  tls:
+    enabled: true

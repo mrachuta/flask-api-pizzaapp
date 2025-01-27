@@ -1,64 +1,28 @@
-data "azurerm_resource_group" "rg" {
-  name = var.existing_rg
-}
+module "aks_cheap_cluster" {
+  source = "github.com/mrachuta/terraform-resources.git//modules/azure-aks-cheap-cluster-module?ref=v1.4.0"
 
-resource "azurerm_container_registry" "acr" {
-  count               = var.provision_acr == true ? 1 : 0
-  name                = var.acr_name
-  resource_group_name = data.azurerm_resource_group.rg.name
-  location            = data.azurerm_resource_group.rg.location
-  sku                 = "Basic"
-  admin_enabled       = false
-  tags = merge(
-    {
-      "managed_by" = "terraform"
-    },
-    var.extra_tags
-  )
-}
-
-resource "azurerm_kubernetes_cluster" "aks" {
-  count               = var.provision_aks == true ? 1 : 0
-  name                = var.aks_name
-  resource_group_name = data.azurerm_resource_group.rg.name
-  location            = data.azurerm_resource_group.rg.location
-  dns_prefix          = var.aks_name
-  sku_tier            = "Free"
-  node_resource_group = var.aks_resources_rg_name
-
-  network_profile {
-    network_plugin    = "kubenet"
-    load_balancer_sku = var.aks_lb_sku
+  existing_rg                   = var.existing_rg
+  provision_acr                 = var.provision_acr
+  acr_custom_region             = var.acr_custom_region
+  provision_aks                 = var.provision_aks
+  acr_name                      = var.acr_name
+  acr_grant_pull_role_to_aks    = true
+  aks_name                      = var.aks_name
+  aks_resources_rg_name         = var.aks_resources_rg_name
+  aks_lb_sku                    = "basic"
+  aks_node_count                = var.aks_node_count
+  aks_node_sku                  = var.aks_node_sku
+  az_cli_path                   = var.az_cli_path
+  provisioner_arm_client_secret = var.provisioner_arm_client_secret
+  nginx_ingress_additional_params = {
+    "controller.service.externalTrafficPolicy" = "Local"
   }
-
-  dynamic "api_server_access_profile" {
-    for_each = (
-      var.aks_lb_sku == "standard" && var.aks_auth_ip_ranges != null
-    ) ? [1] : []
-    content {
-      authorized_ip_ranges = [
-        var.aks_auth_ip_ranges
-      ]
-    }
+  aks_scaling_details_default_node = {
+    days          = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    start_time_HH = 10
+    start_time_MM = 30
+    stop_time_HH  = 22
+    stop_time_MM  = 30
+    timezone      = "UTC"
   }
-
-  default_node_pool {
-    name                        = "default"
-    temporary_name_for_rotation = "defaulttemp"
-    node_count                  = 1
-    vm_size                     = "Standard_B2s"
-    os_disk_size_gb             = 32
-    os_disk_type                = "Managed"
-  }
-
-  identity {
-    type = "SystemAssigned"
-  }
-
-  tags = merge(
-    {
-      "managed_by" = "terraform"
-    },
-    var.extra_tags
-  )
 }

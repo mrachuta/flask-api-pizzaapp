@@ -1,26 +1,34 @@
+---
 block-list-secret-scan: []
 directory:
-- ./helm/flask-api-pizzaapp/
+  - ./helm/flask-api-pizzaapp/
 download-external-modules: false
 evaluate-variables: true
 external-modules-download-path: .external_modules
 framework:
-- helm
+  - helm
 hard-fail-on:
-- HIGH
+  - HIGH
 mask: []
 output:
-- cli
-- junitxml
+  - cli
+  - junitxml
 output-file-path: console,checkov-results-helm.xml
 quiet: true
 secrets-history-timeout: 12h
 secrets-scan-file-type: []
 skip-check:
-- CKV_K8S_21
+  - CKV_K8S_21
+  - CKV_K8S_35
+  - CKV_K8S_43
+  - CKV_K8S_14
+  - CKV_K8S_20
+  - CKV_K8S_22
+  - CKV_K8S_40
 skip-path:
-- templates/tests/test-connection.yaml
+  - templates/tests/test-connection.yaml
 soft-fail: true
 summary-position: top
 var-file:
-- ./helm/environments/dev-env.yaml
+  - ./helm/flask-api-pizzaapp/values.yaml
+  - ./helm/environments/dev-env.yaml

@@ -1,23 +1,19 @@
 ## General info
 
-Basic Kubernetes cluster setup to run flask-api-pizzaapp
+Basic Kubernetes cluster setup required to run flask-api-pizzaapp
 
 ## Requirements
 
-* Existing k8s cluster (example here: AKS)
+* Existing k8s cluster (example here: AKS). You can create cluster using terraform module in [terraform](../terraform) directory.
 
 ## Usage
 * Get cluster credentials
   ```
-  az aks get-credentials --resource-group myexistingrg01 --name myaks01 --admin
+  az aks get-credentials --resource-group myrg01 --name myaks01 --admin
   ```
 * Create namespaces:
   ```
   kubectl apply -f namespaces.yaml
-  ```
-* Deploy ingress-nginx:
-  ```
-  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
   ```
 * Deploy cert-manager:
   ```
@@ -35,13 +31,16 @@ Basic Kubernetes cluster setup to run flask-api-pizzaapp
   * This is staging certificate; if you want to create prod certificate use Let's Encrypt prod API: *https://acme-v02.api.letsencrypt.org/directory*
 * Deploy flask-api-pizzaapp using helm chart
   * Create yaml file basing on [dev-env.yaml](../../helm/environments/dev-env.yaml), for example *my-dev-env.yaml*
-    * If you need to create registry secret to access ACR from AKS see following guide: https://azuredevcollege.com/trainingdays/day7/challenges/image-pull-secret.html
+    * If you need to create registry secret to access ACR from AKS you can use existing service principal (https://learn.microsoft.com/en-us/azure/container-registry/container-registry-authentication?tabs=azure-cli#service-principal) or ACR admin account (WARNING, it's unsafe: https://learn.microsoft.com/en-us/azure/container-registry/container-registry-authentication?tabs=azure-cli#admin-account)
   * Replace *@JWT_SECRET@*, *@DB_NAME@*, *@DB_USER@* and *@DB_PASS@* with proper values in helm command (see next step)
   * Run following command:
     ```
     helm upgrade --install flask-api-pizzaapp ./helm/flask-api-pizzaapp \
-    --wait --timeout 10m --atomic \
+    --wait \
+    --timeout 10m \
+    --atomic \
     --namespace dev-env \
+    --values ./helm/nodejs-colorizedapp/values.yaml \
     --values ./helm/environments/my-dev-env.yaml \
     --set image.repository=my-repo/flask-api-pizzaapp \
     --set image.tag=latest \

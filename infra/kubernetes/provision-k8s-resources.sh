@@ -3,7 +3,7 @@
 set -euo pipefail
 
 CERT_MANAGER_VER='v1.13.1'
-NGINX_INGRESS_VER='v1.8.2'
+#NGINX_INGRESS_VER='v1.8.2'
 
 echo 'Creating namespaces'
 kubectl apply -f ./namespaces.yaml
@@ -16,15 +16,17 @@ sleep 30
 echo 'Applying cert-manager clusterissuer'
 kubectl apply -f ./letsencrypt-staging-clusterissuer.yaml
 
-echo 'Applying secrets'
-kubectl apply -f ./acr-registry-secret-dev-env.yaml 
-kubectl apply -f ./acr-registry-secret-uat-env.yaml
-kubectl apply -f ./acr-registry-secret-prod-env.yaml
+# # Uncomment for bare-metal k8s
+# echo 'Applying secrets'
+# kubectl apply -f ./acr-registry-secret-dev-env.yaml 
+# kubectl apply -f ./acr-registry-secret-uat-env.yaml
+# kubectl apply -f ./acr-registry-secret-prod-env.yaml
 
-echo "Applying ingress-nginx version ${NGINX_INGRESS_VER}"
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-${NGINX_INGRESS_VER}/deploy/static/provider/cloud/deploy.yaml
-echo 'Sleep for 30 seconds'
-sleep 30
+# # No longer required as it is handled by terraform and helm provider
+# echo "Applying ingress-nginx version ${NGINX_INGRESS_VER}"
+# kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-${NGINX_INGRESS_VER}/deploy/static/provider/cloud/deploy.yaml
+# echo 'Sleep for 30 seconds'
+# sleep 30
 
 echo 'Getting loadBalancer IP address...'
 until kubectl get svc ingress-nginx-controller -n ingress-nginx \

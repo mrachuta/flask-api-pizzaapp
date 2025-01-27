@@ -36,9 +36,6 @@ Common labels
 {{- define "flask-api-pizzaapp-chart.labels" -}}
 helm.sh/chart: {{ include "flask-api-pizzaapp-chart.chart" . }}
 {{ include "flask-api-pizzaapp-chart.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
@@ -47,5 +44,24 @@ Selector labels
 */}}
 {{- define "flask-api-pizzaapp-chart.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "flask-api-pizzaapp-chart.name" . }}
+app: {{ include "flask-api-pizzaapp-chart.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{- define "flask-api-pizzaapp-chart.versionLabel" -}}
+{{- $top := index . 0 -}}
+{{- $appver := index . 1 -}}
+app.kubernetes.io/version: {{ $appver | quote }}
+version: {{ $appver | quote }}
+{{- end }}
+
+{{/*
+Create the name of TLS secret for ingress
+*/}}
+{{- define "flask-api-pizzaapp-chart.tlsSecretName" -}}
+{{- if .Values.ingress.tls.enabled }}
+{{- default (printf "%s-cert" .Values.ingress.host | replace "." "-") .Values.ingress.tls.secretName }}
+{{- else }}
+{{- print "" }}
+{{- end }}
 {{- end }}

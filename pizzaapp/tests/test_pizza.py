@@ -9,6 +9,7 @@ import unittest
 from unittest import mock
 from ..app import create_app, db
 
+
 class PizzaTest(unittest.TestCase):
 
     """
@@ -19,7 +20,12 @@ class PizzaTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.env_patcher = mock.patch.dict(
-            os.environ, {"ENV_DETAILED_NAME": "local", "BANNER_COLOR": "green", "FLASK_ENV": "local"}
+            os.environ,
+            {
+                "ENV_DETAILED_NAME": "local",
+                "BANNER_COLOR": "green",
+                "FLASK_ENV": "local",
+            },
         )
         cls.env_patcher.start()
 
@@ -32,7 +38,6 @@ class PizzaTest(unittest.TestCase):
         cls.env_patcher.stop()
 
     def setUp(self):
-
         """
         Setup mock with profile local
         """
@@ -46,7 +51,6 @@ class PizzaTest(unittest.TestCase):
             db.create_all()
 
     def test_check_page_title(self):
-
         res_one = self.client.get("/")
         print(res_one.get_data(as_text=True))
         title = re.search(
@@ -55,7 +59,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(title.group(1), "Welcome page - PizzaApp")
 
     def test_check_banner_visibility(self):
-
         res_one = self.client.get("/")
         is_banner_visible = bool(
             re.search(
@@ -65,7 +68,6 @@ class PizzaTest(unittest.TestCase):
         self.assertTrue(is_banner_visible)
 
     def test_check_banner_color(self):
-
         res_one = self.client.get("/")
         banner_color = re.search(
             '<p style="color:(.*)">ENVIRONMENT.*</p>',
@@ -75,7 +77,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(banner_color.group(1), "green")
 
     def test_check_banner_env(self):
-
         res_one = self.client.get("/")
         banner_env = re.search(
             "<p.*>ENVIRONMENT: (.*)</p>", res_one.get_data(as_text=True), re.IGNORECASE
@@ -83,7 +84,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(banner_env.group(1), "local")
 
     def test_create_pizza(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -92,7 +92,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_one.status_code, 201)
 
     def test_create_pizza_duplicate_name(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -108,7 +107,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_two.status_code, 400)
 
     def test_create_pizza_blank_name(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -117,7 +115,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_one.status_code, 400)
 
     def test_create_pizza_blank_price(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -126,7 +123,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_one.status_code, 400)
 
     def test_create_pizza_price_as_str(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -135,7 +131,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_one.status_code, 400)
 
     def test_get_all_pizzas(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -158,7 +153,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_three.json[1].get("name"), "next-test-pizza")
 
     def test_update_pizza(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -176,7 +170,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_two.json.get("id"), created_pizza_id)
 
     def test_update_non_existing_pizza(self):
-
         res_one = self.client.patch(
             "/api/v1/pizza/1",
             headers={"Content-Type": "application/json"},
@@ -185,7 +178,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_one.status_code, 404)
 
     def test_update_pizza_duplicate_name(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -209,7 +201,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_three.status_code, 400)
 
     def test_update_pizza_blank_name(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -226,7 +217,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_two.status_code, 400)
 
     def test_delete_pizza(self):
-
         res_one = self.client.post(
             "/api/v1/pizza/",
             headers={"Content-Type": "application/json"},
@@ -243,7 +233,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_two.status_code, 200)
 
     def test_delete_non_existing_pizza(self):
-
         res_two = self.client.delete(
             "/api/v1/pizza/1",
             headers={"Content-Type": "application/json"},
@@ -252,7 +241,6 @@ class PizzaTest(unittest.TestCase):
         self.assertEqual(res_two.status_code, 404)
 
     def tearDown(self):
-
         """
         Tear Down
         """
