@@ -37,7 +37,6 @@ Common labels
 helm.sh/chart: {{ include "flask-api-pizzaapp-chart.chart" . }}
 {{ include "flask-api-pizzaapp-chart.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app: {{ include "flask-api-pizzaapp-chart.name" . }}
 {{- end }}
 
 {{/*
@@ -45,6 +44,7 @@ Selector labels
 */}}
 {{- define "flask-api-pizzaapp-chart.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "flask-api-pizzaapp-chart.name" . }}
+app: {{ include "flask-api-pizzaapp-chart.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
