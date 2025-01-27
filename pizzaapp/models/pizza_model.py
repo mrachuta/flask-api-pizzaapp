@@ -20,7 +20,6 @@ def must_not_be_blank(data):
 
 
 class PizzaModel(db.Model):
-
     """
     Pizza Model
     """
@@ -43,8 +42,8 @@ class PizzaModel(db.Model):
         self.name = data.get("name")
         self.price = data.get("price")
         self.ingeridients = data.get("ingeridients")
-        self.created_at = datetime.now(timezone.utc) 
-        self.modified_at = datetime.now(timezone.utc) 
+        self.created_at = datetime.now(timezone.utc)
+        self.modified_at = datetime.now(timezone.utc)
 
     @staticmethod
     def get_all_pizzas():
@@ -98,7 +97,6 @@ class PizzaModel(db.Model):
 
 
 class PizzaSchema(Schema):
-
     """
     Pizza Schema
     """

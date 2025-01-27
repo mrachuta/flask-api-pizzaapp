@@ -23,11 +23,11 @@ def create_app():
     try:
         env_name = os.environ["FLASK_ENV"]
         print(f"Running with profile: {env_name}")
-    except KeyError:
+    except KeyError as exc:
         raise KeyError(
             "An error occured, set profile with FLASK_ENV environment variable\n"
             + "Possible profiles:{' '.join(map(str, app_config.keys()))}"
-        )
+        ) from exc
 
     app = Flask(__name__, template_folder="templates")
 
