@@ -24,7 +24,7 @@ def create_app():
         env_name = os.environ["FLASK_ENV"]
         print(f"Running with profile: {env_name}")
     except KeyError:
-        raise Exception(
+        raise KeyError(
             "An error occured, set profile with FLASK_ENV environment variable\n"
             + "Possible profiles:{' '.join(map(str, app_config.keys()))}"
         )

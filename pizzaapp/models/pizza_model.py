@@ -2,7 +2,7 @@
 This is a defitinion of pizza object in database
 """
 
-import datetime
+from datetime import datetime, timezone
 from marshmallow import fields, Schema, ValidationError
 from . import db
 
@@ -43,8 +43,8 @@ class PizzaModel(db.Model):
         self.name = data.get("name")
         self.price = data.get("price")
         self.ingeridients = data.get("ingeridients")
-        self.created_at = datetime.datetime.utcnow()
-        self.modified_at = datetime.datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc) 
+        self.modified_at = datetime.now(timezone.utc) 
 
     @staticmethod
     def get_all_pizzas():
@@ -82,7 +82,7 @@ class PizzaModel(db.Model):
 
         for key, item in data.items():
             setattr(self, key, item)
-        self.modified_at = datetime.datetime.utcnow()
+        self.modified_at = datetime.now(timezone.utc)
         db.session.commit()
 
     def delete(self):
