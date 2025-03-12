@@ -71,7 +71,7 @@ pipeline {
                     az login --service-principal \
                     --username $AZURE_SP_USR \
                     --password $AZURE_SP_PSW \
-                    --tenant $AZURE_TENANT
+                    --tenant $AZURE_TENANT_ID
                     '''
                 }
             }
@@ -179,8 +179,8 @@ pipeline {
                             -var provision_aks=$DEPLOY_AKS \
                             -var aks_name=$AZURE_AKS_NAME \
                             -var aks_custom_region=$AZURE_REGION \
-                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME \
-                            -var aks_node_count=$AZURE_AKS_NODE_COUT \
+                            -var aks_resources_rg_name=$AZURE_AKS_RESOURCES_RG_NAME \
+                            -var aks_node_count=$AZURE_AKS_NODE_COUNT \
                             -var aks_node_sku=$AZURE_AKS_NODE_SKU \
                             -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
                             -var az_cli_path="/opt/tools/python/install/bin/az"
@@ -196,8 +196,8 @@ pipeline {
                             -var provision_aks=$DEPLOY_AKS \
                             -var aks_name=$AZURE_AKS_NAME \
                             -var aks_custom_region=$AZURE_REGION \
-                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME \
-                            -var aks_node_count=$AZURE_AKS_NODE_COUT \
+                            -var aks_resources_rg_name=$AZURE_AKS_RESOURCES_RG_NAME \
+                            -var aks_node_count=$AZURE_AKS_NODE_COUNT \
                             -var aks_node_sku=$AZURE_AKS_NODE_SKU \
                             -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
                             -var az_cli_path="/opt/tools/python/install/bin/az"
@@ -213,8 +213,8 @@ pipeline {
                             -var provision_aks=$DEPLOY_AKS \
                             -var aks_name=$AZURE_AKS_NAME \
                             -var aks_custom_region=$AZURE_REGION \
-                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME \
-                            -var aks_node_count=$AZURE_AKS_NODE_COUT \
+                            -var aks_resources_rg_name=$AZURE_AKS_RESOURCES_RG_NAME \
+                            -var aks_node_count=$AZURE_AKS_NODE_COUNT \
                             -var aks_node_sku=$AZURE_AKS_NODE_SKU \
                             -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
                             -var az_cli_path="/opt/tools/python/install/bin/az"

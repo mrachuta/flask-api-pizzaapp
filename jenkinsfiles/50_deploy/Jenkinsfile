@@ -71,7 +71,7 @@ pipeline {
                     az login --service-principal \
                     --username $AZURE_SP_USR \
                     --password $AZURE_SP_PSW \
-                    --tenant $AZURE_TENANT
+                    --tenant $AZURE_TENANT_ID
                     '''
                 }
             }
