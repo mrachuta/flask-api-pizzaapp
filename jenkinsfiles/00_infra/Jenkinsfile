@@ -84,6 +84,8 @@ pipeline {
                     env.ARM_CLIENT_SECRET = env.AZURE_SP_PSW
                     env.ARM_TENANT_ID = env.AZURE_TENANT_ID
                     env.ARM_SUBSCRIPTION_ID = env.AZURE_SUBSCRIPTION_ID
+                    // Additional var required by module; passed here to avoid exposure via terraform command args
+                    env.TF_VAR_provisioner_arm_client_secret = env.AZURE_SP_PSW
                     // Required by remote state: 
                     // https://learn.microsoft.com/en-us/azure/developer/terraform/store-state-in-azure-storage
                     env.ARM_ACCESS_KEY=sh(
@@ -181,7 +183,7 @@ pipeline {
                             -var aks_node_count=$AZURE_AKS_NODE_COUT \
                             -var aks_node_sku=$AZURE_AKS_NODE_SKU \
                             -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
-                            -var az_cli_path="/opt/tools/python/install/bin/az" \
+                            -var az_cli_path="/opt/tools/python/install/bin/az"
                             terraform $TF_ACTION -input=false -auto-approve tfplan
                             '''
                         } else if (env.TF_ACTION == 'destroy') {
@@ -198,7 +200,7 @@ pipeline {
                             -var aks_node_count=$AZURE_AKS_NODE_COUT \
                             -var aks_node_sku=$AZURE_AKS_NODE_SKU \
                             -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
-                            -var az_cli_path="/opt/tools/python/install/bin/az" \
+                            -var az_cli_path="/opt/tools/python/install/bin/az"
                             terraform apply -input=false -auto-approve tfplan
                             '''
                         } else {
