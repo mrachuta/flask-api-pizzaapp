@@ -186,7 +186,7 @@ pipeline {
                     ]) {
                         sh '''
                         az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP_NAME \
-                        --name $AZURE_KUBE_CLUSTER_NAME --admin
+                        --name $AZURE_AKS_NAME --admin
                         helm upgrade --install $APP_NAME ./helm/$APP_NAME \
                         --wait \
                         --timeout 10m \

@@ -66,7 +66,7 @@ pipeline {
                     // Exposing multiple variables like AZURE_SUBSCRIPTION_ID etc.
                     exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing rest of variables...'
-                    env.AZURE_REGISTRY_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
+                    env.AZURE_ACR_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
                     sh '''
                     az login --service-principal \
                     --username $AZURE_SP_USR \
@@ -172,10 +172,16 @@ pipeline {
                             terraform plan -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
+                            -var acr_name=$AZURE_ACR_NAME  \
+                            -var acr_custom_region=$AZURE_REGION \
                             -var provision_aks=$DEPLOY_AKS \
-                            -var acr_name=$AZURE_REGISTRY_NAME  \
-                            -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
-                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
+                            -var aks_name=$AZURE_AKS_NAME \
+                            -var aks_custom_region=$AZURE_REGION \
+                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME \
+                            -var aks_node_count=$AZURE_AKS_NODE_COUT \
+                            -var aks_node_sku=$AZURE_AKS_NODE_SKU \
+                            -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
+                            -var az_cli_path="/opt/tools/python/install/bin/az" \
                             terraform $TF_ACTION -input=false -auto-approve tfplan
                             '''
                         } else if (env.TF_ACTION == 'destroy') {
@@ -183,10 +189,16 @@ pipeline {
                             terraform plan -destroy -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
+                            -var acr_name=$AZURE_ACR_NAME  \
+                            -var acr_custom_region=$AZURE_REGION \
                             -var provision_aks=$DEPLOY_AKS \
-                            -var acr_name=$AZURE_REGISTRY_NAME  \
-                            -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
-                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
+                            -var aks_name=$AZURE_AKS_NAME \
+                            -var aks_custom_region=$AZURE_REGION \
+                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME \
+                            -var aks_node_count=$AZURE_AKS_NODE_COUT \
+                            -var aks_node_sku=$AZURE_AKS_NODE_SKU \
+                            -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
+                            -var az_cli_path="/opt/tools/python/install/bin/az" \
                             terraform apply -input=false -auto-approve tfplan
                             '''
                         } else {
@@ -194,10 +206,16 @@ pipeline {
                             terraform $TF_ACTION -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
+                            -var acr_name=$AZURE_ACR_NAME  \
+                            -var acr_custom_region=$AZURE_REGION \
                             -var provision_aks=$DEPLOY_AKS \
-                            -var acr_name=$AZURE_REGISTRY_NAME  \
-                            -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
-                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
+                            -var aks_name=$AZURE_AKS_NAME \
+                            -var aks_custom_region=$AZURE_REGION \
+                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME \
+                            -var aks_node_count=$AZURE_AKS_NODE_COUT \
+                            -var aks_node_sku=$AZURE_AKS_NODE_SKU \
+                            -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
+                            -var az_cli_path="/opt/tools/python/install/bin/az"
                             '''
                         }
                     }
@@ -212,7 +230,7 @@ pipeline {
                 script {
                     sh '''
                     az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP_NAME \
-                    --name $AZURE_KUBE_CLUSTER_NAME --admin
+                    --name $AZURE_AKS_NAME --admin
                     '''
                     dir('infra/kubernetes') {
                         // // Uncomment for bare-metal k8s
