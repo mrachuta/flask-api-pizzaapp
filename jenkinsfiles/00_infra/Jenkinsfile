@@ -66,7 +66,7 @@ pipeline {
                     // Exposing multiple variables like AZURE_SUBSCRIPTION_ID etc.
                     exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing rest of variables...'
-                    env.AZURE_ACR_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
+                    env.AZURE_ACR_NAME = "${env.AZURE_ACR_ADDRESS}".split('\\.').first()
                     sh '''
                     az login --service-principal \
                     --username $AZURE_SP_USR \
