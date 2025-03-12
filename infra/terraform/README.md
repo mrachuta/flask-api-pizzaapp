@@ -16,11 +16,12 @@ with following content:
 ```
 $ cat flaskapipizzaapp.auto.tfvars
 existing_rg           = "myrg01"
-provision_acr         = "true"
+provision_acr         = true
 acr_name              = "myaks01"
-provision_aks         = "true"
+provision_aks         = true
 aks_name              = "myacr01"
 aks_resources_rg_name = "myrg01-myaks01"
+az_cli_path           = "/opt/tools/python/install/bin/az"
 ```
 * if you want to adjust more parameters, take a look at [main.tf](./main.tf) and [variables.tf](https://github.com/mrachuta/terraform-resources/blob/master/modules/azure-aks-cheap-cluster-module/variables.tf)
 * module by default is integrating AKS with ACR by granting AcrPull role to AKS Managed Identity
