@@ -239,7 +239,7 @@ pipeline {
                         //     sh """
                         //     kubectl create secret docker-registry acr-registry-secret-${it} \
                         //     --namespace ${it} \
-                        //     --docker-server=$AZURE_REGISTRY_ADDRESS \
+                        //     --docker-server=$AZURE_ACR_ADDRESS \
                         //     --docker-username=$AZURE_SP_USR \
                         //     --docker-password=$AZURE_SP_PSW \
                         //     --dry-run=client -o yaml > acr-registry-secret-${it}.yaml

@@ -245,7 +245,7 @@ pipeline {
                             sh """
                             mv config.json /kaniko/.docker/config.json
                             /kaniko/executor --dockerfile="./Dockerfile" \
-                            --destination="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${TAG_NAME}" \
+                            --destination="${AZURE_ACR_ADDRESS}/${APP_NAME}:${TAG_NAME}" \
                             --context="." --insecure --insecure-pull \
                             --label COMMIT_ID=${env.GIT_COMMIT} \
                             --label BRANCH=${env.GIT_BRANCH} \
@@ -288,7 +288,7 @@ pipeline {
                         --namespace "$TARGET_ENV" \
                         --values ./helm/flask-api-pizzaapp/values.yaml \
                         --values ./helm/environments/${TARGET_ENV}.yaml \
-                        --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
+                        --set image.repository="${AZURE_ACR_ADDRESS}/${APP_NAME}" \
                         --set image.tag="${TAG_NAME}" \
                         --set ingress.host="${INGRESS_HOST}" \
                         --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
@@ -312,7 +312,7 @@ pipeline {
                 obsoleteImageList = sh(
                     returnStdout: true,
                     script: '''
-                    az acr manifest metadata list --registry $AZURE_REGISTRY_ADDRESS \
+                    az acr manifest metadata list --registry $AZURE_ACR_ADDRESS \
                     --name $APP_NAME --orderby time_asc \
                     --query "[?lastUpdateTime < '$(date --date='-30 days' '+%Y-%m-%d')'].tags[]" -o tsv |\
                     grep -v '[0-9]\\+.[0-9]\\+.[0-9]\\+' || true
@@ -322,7 +322,7 @@ pipeline {
                     obsoleteImageList.each { imageTag ->
                         echo "Deleting ${imageTag} -> older than 30 days!"
                         sh """
-                        az acr repository delete --yes --name ${env.AZURE_REGISTRY_ADDRESS} \
+                        az acr repository delete --yes --name ${env.AZURE_ACR_ADDRESS} \
                         --image ${env.APP_NAME}:${imageTag}
                         """
                     }
