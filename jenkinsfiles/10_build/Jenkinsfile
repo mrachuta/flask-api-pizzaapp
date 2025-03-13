@@ -230,7 +230,7 @@ pipeline {
                             ).trim()
                             configJson = [
                                 "auths": [
-                                    "${env.AZURE_REGISTRY_ADDRESS}": [
+                                    "${env.AZURE_ACR_ADDRESS}": [
                                         "auth": azureRegistryCredsEnc
                                     ],
                                     "${env.PRIVATE_REGISTRY_ADDRESS}": [
