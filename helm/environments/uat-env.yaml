@@ -13,8 +13,6 @@ env:
 ingress:
   enabled: true
   className: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
   host: "" # Delivered by cli args
   path: /
   pathType: ImplementationSpecific
