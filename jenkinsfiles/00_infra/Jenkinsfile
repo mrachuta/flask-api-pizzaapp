@@ -142,7 +142,6 @@ pipeline {
         stage('Run checkov over terraform code') {
             when { expression { params.RUN_CHECKOV } }
             steps {
-                sh 'pip3 install checkov'
                 sh 'checkov --config-file ./checkov-terraform.yml'
                 junit(
                     allowEmptyResults: true,

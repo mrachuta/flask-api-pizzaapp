@@ -191,7 +191,6 @@ pipeline {
         stage('Run checkov over docker and helm') {
             when { expression { params.RUN_CHECKOV } }
             steps {
-                sh 'pip3 install checkov'
                 sh 'checkov --config-file ./checkov-docker.yml'
                 sh 'checkov --config-file ./checkov-helm.yml'
                 junit(
