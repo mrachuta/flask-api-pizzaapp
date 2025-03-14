@@ -1,5 +1,5 @@
 module "aks_cheap_cluster" {
-  source = "github.com/mrachuta/terraform-resources.git//modules/azure-aks-cheap-cluster-module?ref=feature/fix-issues-with-dependency-aks-cheap-cluster"
+  source = "github.com/mrachuta/terraform-resources.git//modules/azure-aks-cheap-cluster-module?ref=v1.4.3"
 
   existing_rg                   = var.existing_rg
   provision_acr                 = var.provision_acr
