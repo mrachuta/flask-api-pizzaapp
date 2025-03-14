@@ -42,12 +42,14 @@ Terraform configuration to create flask-api-pizzaapp stack
   provision_aks         = true
   aks_name              = "myacr01"
   aks_resources_rg_name = "myrg01-myaks01"
-  az_cli_path           = "/path/to/your/az"
+  contapp_env_name      = "mycontapp01"
+  az_cli_path           = "/path/to/az/cli/executable"
   ```
 * if you want to adjust more parameters, take a look at [main.tf](./main.tf) and [variables.tf](https://github.com/mrachuta/terraform-resources/blob/master/modules/azure-aks-cheap-cluster-module/variables.tf)
 * module by default is integrating AKS with ACR by granting AcrPull role to AKS Managed Identity
 
 ## Usage
+
 Initalize terraform:
 ```
 terraform init

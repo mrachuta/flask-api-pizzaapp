@@ -69,7 +69,7 @@ pipeline {
                         imageTags = sh(
                             returnStdout: true,
                             script: """
-                            az acr repository show-tags --name ${env.AZURE_REGISTRY_ADDRESS} \
+                            az acr repository show-tags --name ${env.AZURE_ACR_ADDRESS} \
                             --repository ${env.APP_NAME} --orderby time_desc --output tsv ${imageFilter}
                             """
                         ).trim()
@@ -96,13 +96,13 @@ pipeline {
                     set +x
                     echo $AZURE_SP_PSW > azcr.psw
                     set -x
-                    cat azcr.psw | crane auth login $AZURE_REGISTRY_ADDRESS \
+                    cat azcr.psw | crane auth login $AZURE_ACR_ADDRESS \
                     --username $AZURE_SP_USR --password-stdin
                     rm azcr.psw
                     '''
                     imageDataJson = readJSON(
                         text: sh(
-                            script: 'crane config ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG}',
+                            script: 'crane config ${AZURE_ACR_ADDRESS}/${APP_NAME}:${SELECTED_TAG}',
                             returnStdout: true
                         ).trim(),
                         returnPojo: true
@@ -250,13 +250,13 @@ pipeline {
                             sh 'git push https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_URL#https://} --tags'
                             echo 'Tagging docker image...'
                             sh '''
-                            crane tag ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${SELECTED_TAG} ${NEW_RELEASE_TAG}
+                            crane tag ${AZURE_ACR_ADDRESS}/${APP_NAME}:${SELECTED_TAG} ${NEW_RELEASE_TAG}
                             '''                    
                             if (conditionalRelease && releaseReqMeet) {
                                 // Took from SO: https://stackoverflow.com/a/54598281
                                 echo 'Modify image to add new labels because of conditional release'
                                 sh '''
-                                crane mutate ${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG} \
+                                crane mutate ${AZURE_ACR_ADDRESS}/${APP_NAME}:${NEW_RELEASE_TAG} \
                                 --label CONDITIONAL_RELEASE="true" \
                                 --label CONDITIONAL_REL_ACCEPTED_BY=${ACCEPTED_BY} 
                                 '''
@@ -264,7 +264,7 @@ pipeline {
                         } catch(err) {
                             echo "Following error occured: ${err}"
                             echo 'Reverting changes...'
-                            sh 'az acr repository delete --yes --name ${AZURE_REGISTRY_ADDRESS} --image ${APP_NAME}:${NEW_RELEASE_TAG} || true'
+                            sh 'az acr repository delete --yes --name ${AZURE_ACR_ADDRESS} --image ${APP_NAME}:${NEW_RELEASE_TAG} || true'
                             sh 'git push --delete https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_URL#https://} ${NEW_RELEASE_TAG} || true'
                             error('Failed to promote image!')
                         }
@@ -313,7 +313,7 @@ pipeline {
                         --atomic \
                         --namespace "$TARGET_ENV" \
                         --values ./helm/environments/${TARGET_ENV}.yaml \
-                        --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
+                        --set image.repository="${AZURE_ACR_ADDRESS}/${APP_NAME}" \
                         --set image.tag="${NEW_RELEASE_TAG}" \
                         --set ingress.host="${INGRESS_HOST}" \
                         --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
