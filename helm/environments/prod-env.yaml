@@ -13,8 +13,11 @@ env:
 ingress:
   enabled: true
   className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   host: "" # Delivered by cli args
   path: /
   pathType: ImplementationSpecific
   tls:
     enabled: true
+    secretName: ""
