@@ -66,12 +66,12 @@ pipeline {
                     // Exposing multiple variables like AZURE_SUBSCRIPTION_ID etc.
                     exposeVariablesFromConfigFile(configFileProviderFileId: 'azure-config')
                     echo 'Exposing rest of variables...'
-                    env.AZURE_REGISTRY_NAME = "${env.AZURE_REGISTRY_ADDRESS}".split('\\.').first()
+                    env.AZURE_ACR_NAME = "${env.AZURE_ACR_ADDRESS}".split('\\.').first()
                     sh '''
                     az login --service-principal \
                     --username $AZURE_SP_USR \
                     --password $AZURE_SP_PSW \
-                    --tenant $AZURE_TENANT
+                    --tenant $AZURE_TENANT_ID
                     '''
                 }
             }
@@ -84,6 +84,8 @@ pipeline {
                     env.ARM_CLIENT_SECRET = env.AZURE_SP_PSW
                     env.ARM_TENANT_ID = env.AZURE_TENANT_ID
                     env.ARM_SUBSCRIPTION_ID = env.AZURE_SUBSCRIPTION_ID
+                    // Additional var required by module; passed here to avoid exposure via terraform command args
+                    env.TF_VAR_provisioner_arm_client_secret = env.AZURE_SP_PSW
                     // Required by remote state: 
                     // https://learn.microsoft.com/en-us/azure/developer/terraform/store-state-in-azure-storage
                     env.ARM_ACCESS_KEY=sh(
@@ -140,7 +142,6 @@ pipeline {
         stage('Run checkov over terraform code') {
             when { expression { params.RUN_CHECKOV } }
             steps {
-                sh 'pip3 install checkov'
                 sh 'checkov --config-file ./checkov-terraform.yml'
                 junit(
                     allowEmptyResults: true,
@@ -172,10 +173,16 @@ pipeline {
                             terraform plan -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
+                            -var acr_name=$AZURE_ACR_NAME  \
+                            -var acr_custom_region=$AZURE_REGION \
                             -var provision_aks=$DEPLOY_AKS \
-                            -var acr_name=$AZURE_REGISTRY_NAME  \
-                            -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
-                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
+                            -var aks_name=$AZURE_AKS_NAME \
+                            -var aks_custom_region=$AZURE_REGION \
+                            -var aks_resources_rg_name=$AZURE_AKS_RESOURCES_RG_NAME \
+                            -var aks_node_count=$AZURE_AKS_NODE_COUNT \
+                            -var aks_node_sku=$AZURE_AKS_NODE_SKU \
+                            -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
+                            -var az_cli_path="/opt/tools/python/install/bin/az"
                             terraform $TF_ACTION -input=false -auto-approve tfplan
                             '''
                         } else if (env.TF_ACTION == 'destroy') {
@@ -183,10 +190,16 @@ pipeline {
                             terraform plan -destroy -out=tfplan -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
+                            -var acr_name=$AZURE_ACR_NAME  \
+                            -var acr_custom_region=$AZURE_REGION \
                             -var provision_aks=$DEPLOY_AKS \
-                            -var acr_name=$AZURE_REGISTRY_NAME  \
-                            -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
-                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
+                            -var aks_name=$AZURE_AKS_NAME \
+                            -var aks_custom_region=$AZURE_REGION \
+                            -var aks_resources_rg_name=$AZURE_AKS_RESOURCES_RG_NAME \
+                            -var aks_node_count=$AZURE_AKS_NODE_COUNT \
+                            -var aks_node_sku=$AZURE_AKS_NODE_SKU \
+                            -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
+                            -var az_cli_path="/opt/tools/python/install/bin/az"
                             terraform apply -input=false -auto-approve tfplan
                             '''
                         } else {
@@ -194,10 +207,16 @@ pipeline {
                             terraform $TF_ACTION -input=false \
                             -var existing_rg=$AZURE_RESOURCE_GROUP_NAME \
                             -var provision_acr=$DEPLOY_ACR \
+                            -var acr_name=$AZURE_ACR_NAME  \
+                            -var acr_custom_region=$AZURE_REGION \
                             -var provision_aks=$DEPLOY_AKS \
-                            -var acr_name=$AZURE_REGISTRY_NAME  \
-                            -var aks_name=$AZURE_KUBE_CLUSTER_NAME \
-                            -var aks_resources_rg_name=$AZURE_RESOURCES_RG_NAME
+                            -var aks_name=$AZURE_AKS_NAME \
+                            -var aks_custom_region=$AZURE_REGION \
+                            -var aks_resources_rg_name=$AZURE_AKS_RESOURCES_RG_NAME \
+                            -var aks_node_count=$AZURE_AKS_NODE_COUNT \
+                            -var aks_node_sku=$AZURE_AKS_NODE_SKU \
+                            -var contapp_env_name=$AZURE_CONTAPP_ENV_NAME \
+                            -var az_cli_path="/opt/tools/python/install/bin/az"
                             '''
                         }
                     }
@@ -212,7 +231,7 @@ pipeline {
                 script {
                     sh '''
                     az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP_NAME \
-                    --name $AZURE_KUBE_CLUSTER_NAME --admin
+                    --name $AZURE_AKS_NAME --admin
                     '''
                     dir('infra/kubernetes') {
                         // // Uncomment for bare-metal k8s
@@ -220,7 +239,7 @@ pipeline {
                         //     sh """
                         //     kubectl create secret docker-registry acr-registry-secret-${it} \
                         //     --namespace ${it} \
-                        //     --docker-server=$AZURE_REGISTRY_ADDRESS \
+                        //     --docker-server=$AZURE_ACR_ADDRESS \
                         //     --docker-username=$AZURE_SP_USR \
                         //     --docker-password=$AZURE_SP_PSW \
                         //     --dry-run=client -o yaml > acr-registry-secret-${it}.yaml

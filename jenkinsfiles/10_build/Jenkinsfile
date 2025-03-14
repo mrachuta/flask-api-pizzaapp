@@ -87,7 +87,7 @@ pipeline {
                     az login --service-principal \
                     --username $AZURE_SP_USR \
                     --password $AZURE_SP_PSW \
-                    --tenant $AZURE_TENANT
+                    --tenant $AZURE_TENANT_ID
                     '''
                 }
             }
@@ -191,7 +191,6 @@ pipeline {
         stage('Run checkov over docker and helm') {
             when { expression { params.RUN_CHECKOV } }
             steps {
-                sh 'pip3 install checkov'
                 sh 'checkov --config-file ./checkov-docker.yml'
                 sh 'checkov --config-file ./checkov-helm.yml'
                 junit(
@@ -231,7 +230,7 @@ pipeline {
                             ).trim()
                             configJson = [
                                 "auths": [
-                                    "${env.AZURE_REGISTRY_ADDRESS}": [
+                                    "${env.AZURE_ACR_ADDRESS}": [
                                         "auth": azureRegistryCredsEnc
                                     ],
                                     "${env.PRIVATE_REGISTRY_ADDRESS}": [
@@ -246,7 +245,7 @@ pipeline {
                             sh """
                             mv config.json /kaniko/.docker/config.json
                             /kaniko/executor --dockerfile="./Dockerfile" \
-                            --destination="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}:${TAG_NAME}" \
+                            --destination="${AZURE_ACR_ADDRESS}/${APP_NAME}:${TAG_NAME}" \
                             --context="." --insecure --insecure-pull \
                             --label COMMIT_ID=${env.GIT_COMMIT} \
                             --label BRANCH=${env.GIT_BRANCH} \
@@ -281,7 +280,7 @@ pipeline {
                     ]) {
                         sh '''
                         az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP_NAME \
-                        --name $AZURE_KUBE_CLUSTER_NAME --admin
+                        --name $AZURE_AKS_NAME --admin
                         helm upgrade --install $APP_NAME ./helm/$APP_NAME \
                         --wait \
                         --timeout 10m \
@@ -289,7 +288,7 @@ pipeline {
                         --namespace "$TARGET_ENV" \
                         --values ./helm/flask-api-pizzaapp/values.yaml \
                         --values ./helm/environments/${TARGET_ENV}.yaml \
-                        --set image.repository="${AZURE_REGISTRY_ADDRESS}/${APP_NAME}" \
+                        --set image.repository="${AZURE_ACR_ADDRESS}/${APP_NAME}" \
                         --set image.tag="${TAG_NAME}" \
                         --set ingress.host="${INGRESS_HOST}" \
                         --set env.secrets.FLASK_DB_USER="${DATABASE_CRED_USR}" \
@@ -307,13 +306,13 @@ pipeline {
                 az login --service-principal \
                 --username $AZURE_SP_USR \
                 --password $AZURE_SP_PSW \
-                --tenant $AZURE_TENANT
+                --tenant $AZURE_TENANT_ID
                 '''
                 // Get all images, sort out release versions (reverse grep)
                 obsoleteImageList = sh(
                     returnStdout: true,
                     script: '''
-                    az acr manifest metadata list --registry $AZURE_REGISTRY_ADDRESS \
+                    az acr manifest metadata list --registry $AZURE_ACR_ADDRESS \
                     --name $APP_NAME --orderby time_asc \
                     --query "[?lastUpdateTime < '$(date --date='-30 days' '+%Y-%m-%d')'].tags[]" -o tsv |\
                     grep -v '[0-9]\\+.[0-9]\\+.[0-9]\\+' || true
@@ -323,7 +322,7 @@ pipeline {
                     obsoleteImageList.each { imageTag ->
                         echo "Deleting ${imageTag} -> older than 30 days!"
                         sh """
-                        az acr repository delete --yes --name ${env.AZURE_REGISTRY_ADDRESS} \
+                        az acr repository delete --yes --name ${env.AZURE_ACR_ADDRESS} \
                         --image ${env.APP_NAME}:${imageTag}
                         """
                     }
